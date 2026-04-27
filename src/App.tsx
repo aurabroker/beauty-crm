@@ -60,7 +60,19 @@ function CRMApp() {
   const [selectedCompany, setSelectedCompany] = useState<Company|null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  useEffect(() => { loadData(); }, []);
+  useEffect(() => {
+    loadData().then(() => {
+      // Auto-match logged Supabase user to crm_users by email
+      supabase.auth.getUser().then(({ data }) => {
+        const authEmail = data.user?.email;
+        if (authEmail) {
+          const state = useCRMStore.getState();
+          const matched = state.users.find(u => u.email === authEmail);
+          if (matched) state.setCurrentUser(matched);
+        }
+      });
+    });
+  }, []);
 
   const freshCompany = selectedCompany ? companies.find(c => c.id === selectedCompany.id) ?? selectedCompany : null;
   const totalReminders = companies.reduce((s,c) => s + c.reminders.filter(r => !r.done).length, 0);
