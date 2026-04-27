@@ -3,6 +3,7 @@ import { useCRMStore } from '../store/useCRMStore';
 import type { Company } from '../data/companies';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { lookupByNIP } from '../lib/gus';
 
 interface DashboardProps { onSelectCompany: (c: Company) => void; }
 type SortKey = 'employees' | 'company' | 'revenue';
@@ -28,6 +29,22 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const [importing, setImporting] = useState(false);
   const csvRef = useRef<HTMLInputElement>(null);
   const isAdmin = currentUser?.role === 'admin';
+  const [nipInput, setNipInput] = useState('');
+  const [gusLoading, setGusLoading] = useState(false);
+  const [gusError, setGusError] = useState('');
+
+  const handleGUSLookup = async () => {
+    if (!nipInput.trim()) return;
+    setGusLoading(true); setGusError('');
+    try {
+      const data = await lookupByNIP(nipInput);
+      if (data) {
+        setNewCo(p => ({ ...p, company: data.name, city: data.city, nip: data.nip, regon: data.regon }));
+        setGusError('');
+      } else { setGusError('Nie znaleziono firmy o tym NIP'); }
+    } catch(e: unknown) { setGusError((e as Error).message); }
+    finally { setGusLoading(false); }
+  };
 
   const visible = isAdmin ? companies : companies.filter(c => !c.assignedTo || c.assignedTo === currentUser?.name);
   const cities = useMemo(() => ['all',...Array.from(new Set(visible.map(c=>c.city))).filter(Boolean).sort()], [visible]);
@@ -125,6 +142,20 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
                 </div>
               ))}
             </div>
+            {/* GUS lookup */}
+            <div className="px-5 pb-3 border-t border-zinc-100 pt-3">
+              <div className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2">🔍 Pobierz dane z GUS (po NIP)</div>
+              <div className="flex gap-2">
+                <input value={nipInput} onChange={e=>setNipInput(e.target.value)} placeholder="np. 5270103391"
+                  className="flex-1 h-8 text-sm border border-zinc-200 px-2 focus:outline-none focus:border-zinc-900 font-mono"/>
+                <button onClick={handleGUSLookup} disabled={gusLoading||!nipInput.trim()}
+                  className="px-3 h-8 text-xs bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-colors whitespace-nowrap">
+                  {gusLoading?'Szukam...':'Pobierz z GUS'}
+                </button>
+              </div>
+              {gusError&&<div className="text-xs text-red-500 mt-1">{gusError}</div>}
+              <div className="text-xs text-zinc-400 mt-1">Dane z Białej Listy MF (NIP → nazwa, miasto, REGON)</div>
+            </div>
             <div className="px-5 pb-5 flex justify-end gap-2">
               <button onClick={()=>setShowAdd(false)} className="px-4 py-2 text-sm border border-zinc-200 text-zinc-600 hover:border-zinc-900">Anuluj</button>
               <button onClick={handleAdd} disabled={!newCo.company?.trim()} className="px-4 py-2 text-sm bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-40">Zapisz</button>
@@ -190,10 +221,19 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
                     {stages.find(s=>s.key===company.status)?.label??company.status}
                   </span>
                 </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-1">
-                    {company.email&&<a href={`mailto:${company.email}`} onClick={e=>e.stopPropagation()} className="text-zinc-300 hover:text-blue-500 text-base" title={`Email: ${company.email}`}>✉</a>}
-                    {isAdmin&&<button onClick={e=>{e.stopPropagation();setConfirmDelete(company.id);}} className="text-zinc-200 hover:text-red-500 text-sm" title="Usuń">✕</button>}
+                <td className="px-4 py-3" onClick={e=>e.stopPropagation()}>
+                  <div className="flex items-center gap-2">
+                    {company.email&&(
+                      <a href={`mailto:${company.email}`}
+                        className="text-xs px-2 py-1 border border-zinc-200 text-zinc-500 hover:border-blue-400 hover:text-blue-600 transition-colors whitespace-nowrap"
+                        title={company.email}>✉ Email</a>
+                    )}
+                    {isAdmin&&(
+                      <button onClick={()=>setConfirmDelete(company.id)}
+                        className="text-xs px-2 py-1 border border-red-200 text-red-500 hover:bg-red-600 hover:text-white hover:border-red-600 transition-colors font-medium whitespace-nowrap">
+                        USUŃ
+                      </button>
+                    )}
                   </div>
                 </td>
               </tr>

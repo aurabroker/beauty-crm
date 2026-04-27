@@ -49,7 +49,7 @@ export default function App() {
           {/* Logo */}
           <div className="font-black text-base tracking-tight mr-6 flex-shrink-0">
             <span className="text-white">CRM</span>
-            <span className="text-amber-400 text-xs font-medium ml-1.5 uppercase tracking-widest">Polska</span>
+            <span className="text-pink-400 text-xs font-medium ml-1.5 uppercase tracking-widest">BeautyPolisa</span>
           </div>
           {/* Nav */}
           <nav className="flex h-full">

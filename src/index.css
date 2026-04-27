@@ -22,3 +22,5 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d4d4d8; }
 ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+/* BeautyPolisa theme tweaks */
+:root { --accent: #db2777; }

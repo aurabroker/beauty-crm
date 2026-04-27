@@ -1,3 +1,4 @@
+import { GoogleSheetsImport } from './GoogleSheetsImport';
 import { useState } from 'react';
 import { useCRMStore } from '../store/useCRMStore';
 import type { PipelineStage } from '../data/companies';
@@ -7,7 +8,7 @@ const COLORS = ['#1f2937','#2563eb','#7c3aed','#059669','#dc2626','#d97706','#08
 
 export function AdminPanel() {
   const { users, stages, addUser, deleteUser, updateUser, updateStages, currentUser } = useCRMStore();
-  const [tab, setTab] = useState<'users'|'pipeline'>('users');
+  const [tab, setTab] = useState<'users'|'pipeline'|'gsheets'>('users');
   const [newUser, setNewUser] = useState({ name:'', email:'', role:'user' as 'admin'|'user', color: COLORS[1] });
   const [editStages, setEditStages] = useState<PipelineStage[]>(stages);
   const [stagesSaved, setStagesSaved] = useState(false);
@@ -40,10 +41,10 @@ export function AdminPanel() {
     <div className="flex flex-col h-full">
       {/* Tabs */}
       <div className="flex border-b border-zinc-200 mb-6">
-        {(['users','pipeline'] as const).map(t => (
+        {(['users','pipeline','gsheets'] as const).map(t => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-5 py-3 text-xs font-medium uppercase tracking-widest transition-colors border-b-2 ${tab===t?'border-zinc-900 text-zinc-900':'border-transparent text-zinc-400 hover:text-zinc-700'}`}>
-            {t==='users'?'👤 Użytkownicy':'⬛ Kolumny Pipeline'}
+            {t==='users'?'👤 Użytkownicy':t==='pipeline'?'⬛ Kolumny Pipeline':'📊 Google Sheets'}
           </button>
         ))}
       </div>
@@ -118,6 +119,12 @@ export function AdminPanel() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {tab === 'gsheets' && (
+        <div className="flex-1 overflow-auto">
+          <GoogleSheetsImport />
         </div>
       )}
 
