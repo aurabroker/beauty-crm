@@ -7,12 +7,14 @@ import { CompanyDrawer } from './components/CompanyDrawer';
 import { Calendar } from './components/Calendar';
 import { Reports } from './components/Reports';
 import { AdminPanel } from './components/AdminPanel';
+import { Clients } from './components/Clients';
 
-type View = 'dashboard' | 'pipeline' | 'calendar' | 'reports' | 'admin';
+type View = 'dashboard' | 'pipeline' | 'klienci' | 'calendar' | 'reports' | 'admin';
 
 const NAV: { key: View; label: string }[] = [
   { key:'dashboard', label:'Firmy' },
   { key:'pipeline',  label:'Pipeline' },
+  { key:'klienci',   label:'Klienci' },
   { key:'calendar',  label:'Kalendarz' },
   { key:'reports',   label:'Raporty' },
   { key:'admin',     label:'Admin' },
@@ -110,6 +112,7 @@ export default function App() {
       <main className="flex-1 overflow-hidden p-5" onClick={()=>showUserMenu&&setShowUserMenu(false)}>
         {view==='dashboard' && <Dashboard onSelectCompany={setSelectedCompany}/>}
         {view==='pipeline'  && <Pipeline onSelectCompany={setSelectedCompany}/>}
+        {view==='klienci'   && <Clients onSelectCompany={setSelectedCompany}/>}
         {view==='calendar'  && <Calendar onSelectCompany={setSelectedCompany}/>}
         {view==='reports'   && <Reports/>}
         {view==='admin'     && <AdminPanel/>}
