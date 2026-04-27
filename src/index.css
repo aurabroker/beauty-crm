@@ -24,3 +24,15 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
 /* BeautyPolisa theme tweaks */
 :root { --accent: #db2777; }
+
+.field-input {
+  width: 100%;
+  height: 2.5rem;
+  border: 1px solid #e4e4e7;
+  padding: 0 0.75rem;
+  font-size: 0.875rem;
+  color: #18181b;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.field-input:focus { border-color: #ec4899; }
