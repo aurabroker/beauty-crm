@@ -52,10 +52,12 @@ export function CompanyDrawer({ company, onClose }: Props) {
 
   // Policy state
   const [showPolicyForm, setShowPolicyForm] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const plus12m = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })();
   const [policyForm, setPolicyForm] = useState<{
-    rodzaj: string; sumaUbezpieczenia: string; skladka: string;
-    skladkaOkres: 'miesięczna'|'roczna'; dataOd: string; dataDo: string; notes: string;
-  }>({ rodzaj: '', sumaUbezpieczenia: '', skladka: '', skladkaOkres: 'miesięczna', dataOd: '', dataDo: '', notes: '' });
+    nrPolisy: string; rodzaj: string; sumaUbezpieczenia: string; skladka: string;
+    skladkaOkres: 'miesięczna'|'kwartalna'|'roczna'|'jednorazowa'; dataOd: string; dataDo: string; notes: string;
+  }>({ nrPolisy: '', rodzaj: '', sumaUbezpieczenia: '', skladka: '', skladkaOkres: 'jednorazowa', dataOd: todayStr, dataDo: plus12m, notes: '' });
   const [savingPolicy, setSavingPolicy] = useState(false);
 
   const activePolicies = company.policies.filter(p => p.status === 'aktywna');
@@ -79,6 +81,7 @@ export function CompanyDrawer({ company, onClose }: Props) {
     if (!policyForm.rodzaj) return;
     setSavingPolicy(true);
     await addPolicy(company.id, {
+      nrPolisy: policyForm.nrPolisy,
       rodzaj: policyForm.rodzaj,
       sumaUbezpieczenia: policyForm.sumaUbezpieczenia,
       skladka: policyForm.skladka ? Number(policyForm.skladka) : null,
@@ -89,7 +92,9 @@ export function CompanyDrawer({ company, onClose }: Props) {
       status: 'aktywna',
       notes: policyForm.notes,
     });
-    setPolicyForm({ rodzaj:'', sumaUbezpieczenia:'', skladka:'', skladkaOkres:'miesięczna', dataOd:'', dataDo:'', notes:'' });
+    const todayReset = new Date().toISOString().split('T')[0];
+    const plus12Reset = (() => { const d = new Date(); d.setFullYear(d.getFullYear() + 1); return d.toISOString().split('T')[0]; })();
+    setPolicyForm({ nrPolisy:'', rodzaj:'', sumaUbezpieczenia:'', skladka:'', skladkaOkres:'jednorazowa', dataOd:todayReset, dataDo:plus12Reset, notes:'' });
     setShowPolicyForm(false);
     setSavingPolicy(false);
   };
@@ -170,7 +175,14 @@ export function CompanyDrawer({ company, onClose }: Props) {
                   <Row label="Telefon"   value={company.phone ? <a href={`tel:${company.phone}`} className="text-blue-600 hover:underline">{company.phone}</a> : '—'} />
                   <Row label="E-mail"    value={company.email ? <a href={`mailto:${company.email}`} className="text-blue-600 hover:underline text-xs">{company.email}</a> : '—'} />
                 </Section>
-                {company.notes && (
+                {company.zainteresowania && (
+                  <Section title="Zainteresowania">
+                    <div className="px-3 py-2 flex flex-wrap gap-1">
+                      {company.zainteresowania.split(',').map(z => <span key={z} className="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 font-medium">{z.trim()}</span>)}
+                    </div>
+                  </Section>
+                )}
+              {company.notes && (
                   <Section title="Notatki">
                     <div className="px-3 py-2 text-sm text-zinc-600">{company.notes}</div>
                   </Section>
@@ -193,7 +205,10 @@ export function CompanyDrawer({ company, onClose }: Props) {
                       <div key={p.id} className={`border p-4 ${expired ? 'border-red-200 bg-red-50' : expiringSoon ? 'border-amber-200 bg-amber-50' : 'border-zinc-200 bg-white'}`}>
                         <div className="flex items-start justify-between mb-3">
                           <div>
+                            <div className="flex items-center gap-2 flex-wrap">
                             <div className="font-bold text-zinc-900">{p.rodzaj}</div>
+                            {p.nrPolisy && <span className="text-xs font-mono bg-zinc-100 text-zinc-600 px-2 py-0.5 border border-zinc-200">#{p.nrPolisy}</span>}
+                          </div>
                             <div className="text-xs text-zinc-400 mt-0.5">Dodano: {fmtDateTime(p.createdAt)}{p.createdBy ? ` · ${p.createdBy}` : ''}</div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -255,6 +270,11 @@ export function CompanyDrawer({ company, onClose }: Props) {
                   <div className="text-xs font-bold text-zinc-900 uppercase tracking-widest mb-4">🛡️ Nowa polisa — {company.company}</div>
                   <div className="grid grid-cols-2 gap-3 mb-3">
                     <div className="col-span-2">
+                      <Label>Nr polisy *</Label>
+                      <Input value={policyForm.nrPolisy} onChange={e => setPolicyForm(p => ({...p, nrPolisy: e.target.value}))}
+                        placeholder="np. POL/2025/001234" className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 font-mono"/>
+                    </div>
+                    <div className="col-span-2">
                       <Label>Rodzaj ubezpieczenia *</Label>
                       <select value={policyForm.rodzaj} onChange={e => setPolicyForm(p => ({...p, rodzaj: e.target.value}))}
                         className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
@@ -264,17 +284,22 @@ export function CompanyDrawer({ company, onClose }: Props) {
                     </div>
                     <div>
                       <Label>Suma ubezpieczenia</Label>
-                      <Input value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
-                        placeholder="np. 500 000 zł" className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+                      <div className="flex">
+                        <Input value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
+                          placeholder="np. 500 000" type="number" className="flex-1 h-9 text-sm rounded-none border-zinc-200 border-r-0 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+                        <span className="h-9 px-3 flex items-center text-sm font-medium bg-zinc-100 border border-zinc-200 text-zinc-600 select-none">PLN</span>
+                      </div>
                     </div>
                     <div>
                       <Label>Składka</Label>
                       <div className="flex gap-1">
                         <Input value={policyForm.skladka} onChange={e => setPolicyForm(p => ({...p, skladka: e.target.value}))}
                           placeholder="kwota w zł" type="number" className="flex-1 h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                        <select value={policyForm.skladkaOkres} onChange={e => setPolicyForm(p => ({...p, skladkaOkres: e.target.value as 'miesięczna'|'roczna'}))}
+                        <select value={policyForm.skladkaOkres} onChange={e => setPolicyForm(p => ({...p, skladkaOkres: e.target.value as 'miesięczna'|'kwartalna'|'roczna'|'jednorazowa'}))}
                           className="h-9 text-xs border border-zinc-200 px-1 bg-white focus:outline-none">
+                          <option value="jednorazowa">jednorazowa</option>
                           <option value="miesięczna">/mies.</option>
+                          <option value="kwartalna">/kw.</option>
                           <option value="roczna">/rok</option>
                         </select>
                       </div>
@@ -307,7 +332,7 @@ export function CompanyDrawer({ company, onClose }: Props) {
 
                   <div className="flex gap-2 justify-end">
                     <button onClick={() => setShowPolicyForm(false)} className="px-4 py-2 text-sm border border-zinc-200 text-zinc-600 hover:border-zinc-900">Anuluj</button>
-                    <button onClick={handleSavePolicy} disabled={!policyForm.rodzaj || savingPolicy}
+                    <button onClick={handleSavePolicy} disabled={!policyForm.nrPolisy || !policyForm.rodzaj || savingPolicy}
                       className="px-4 py-2 text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 font-medium">
                       {savingPolicy ? 'Zapisuję...' : '✓ Zapisz polisę'}
                     </button>

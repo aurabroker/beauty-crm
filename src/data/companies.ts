@@ -10,13 +10,14 @@ export interface Reminder {
 export interface Policy {
   id: string;
   companyId: number;
+  nrPolisy: string;
   rodzaj: string;
   sumaUbezpieczenia: string;
   skladka: number | null;
-  skladkaOkres: 'miesięczna' | 'roczna';
+  skladkaOkres: 'miesięczna' | 'kwartalna' | 'roczna' | 'jednorazowa';
   dataOd: string;
   dataDo: string;
-  przypomnienie: string;  // auto: dataDo - 45 dni
+  przypomnienie: string;
   status: 'aktywna' | 'wygasła' | 'anulowana';
   notes: string;
   createdAt: string;
@@ -34,6 +35,8 @@ export interface Company {
   industry: string; revenue: number; employees: string; url: string;
   nip?: string; regon?: string; notes?: string;
   ubezpieczenie?: string; przychod?: string;
+  tag?: string;
+  zainteresowania?: string;
   status: Status; assignedTo?: string; assignedUserId?: string;
   history: ContactHistory[]; reminders: Reminder[]; policies: Policy[];
 }
@@ -53,4 +56,14 @@ export const RODZAJE_UBEZPIECZEN = [
   'Ochrona karno-skarbowa',
   'Pakiety zdrowotne',
   'Inne',
+];
+
+export const TAGI_ZADANIOWE = [
+  'Do kontaktu',
+  'Oferta wysłana',
+  'Czeka na decyzję',
+  'Umówione spotkanie',
+  'Brak kontaktu',
+  'Nie zainteresowany',
+  'VIP',
 ];
