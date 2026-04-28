@@ -1,156 +1,118 @@
 import { useMemo } from 'react';
 import { useCRMStore } from '../store/useCRMStore';
 
-
-import { formatRevenue } from '../lib/utils2';
+function fmtPLN(n: number) {
+  return n.toLocaleString('pl-PL', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' zł';
+}
 
 export function Reports() {
-  const { companies, currentUser, stages } = useCRMStore();
+  const { companies } = useCRMStore();
 
-  const visible = currentUser?.role === 'admin' ? companies : companies.filter(c => !c.assignedTo || c.assignedTo === currentUser?.name);
+  const stats = useMemo(() => {
+    const allPolicies = companies.flatMap(c => c.policies);
 
-  const byStage = useMemo(() => stages.map(s => ({
-    ...s,
-    companies: visible.filter(c => c.status === s.key),
-    revenue: visible.filter(c => c.status === s.key).reduce((sum, c) => sum + c.revenue, 0),
-  })), [visible]);
+    // Składka total po data_od (rok kalendarzowy)
+    const skladkaYear = (year: number) =>
+      allPolicies
+        .filter(p => p.status === 'aktywna' && p.dataOd && new Date(p.dataOd).getFullYear() === year)
+        .reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0);
 
-  const maxRev = Math.max(...byStage.map((s: {revenue: number}) => s.revenue), 1);
+    // Polisy wg rodzaju
+    const byRodzaj = (keywords: string[]) => {
+      const matching = allPolicies.filter(p =>
+        p.status === 'aktywna' &&
+        keywords.some(k => p.rodzaj?.toLowerCase().includes(k.toLowerCase()))
+      );
+      return {
+        count: matching.length,
+        skladka: matching.reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0),
+        companies: [...new Set(matching.map(p => p.companyId))].length,
+      };
+    };
 
-  const byCity = useMemo(() => {
-    const map: Record<string, { count: number; revenue: number }> = {};
-    visible.forEach(c => {
-      if (!map[c.city]) map[c.city] = { count: 0, revenue: 0 };
-      map[c.city].count++;
-      map[c.city].revenue += c.revenue;
+    const oc  = byRodzaj(['OC', 'odpowiedzialności cywilnej']);
+    const tax = byRodzaj(['karno', 'skarbowa', 'tax', 'podatkow']);
+    const l4  = byRodzaj(['utrata', 'dochodu', 'l4', 'chorobow']);
+
+    // Aktywne polisy ogółem
+    const aktywne = allPolicies.filter(p => p.status === 'aktywna');
+    const wygasajace = aktywne.filter(p => {
+      if (!p.dataDo) return false;
+      const days = Math.ceil((new Date(p.dataDo).getTime() - Date.now()) / 86400000);
+      return days >= 0 && days <= 45;
     });
-    return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 8);
-  }, [visible]);
 
-  const byIndustry = useMemo(() => {
-    const map: Record<string, { count: number; revenue: number }> = {};
-    visible.forEach(c => {
-      if (!map[c.industry]) map[c.industry] = { count: 0, revenue: 0 };
-      map[c.industry].count++;
-      map[c.industry].revenue += c.revenue;
-    });
-    return Object.entries(map).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 8);
-  }, [visible]);
+    // Klienci z polisami
+    const klienciZPolisami = companies.filter(c => c.policies.some(p => p.status === 'aktywna')).length;
 
-  const maxCityRev = Math.max(...byCity.map(c => c[1].revenue), 1);
-  const maxIndRev = Math.max(...byIndustry.map(c => c[1].revenue), 1);
+    return {
+      skladka2025: skladkaYear(2025),
+      skladka2026: skladkaYear(2026),
+      oc, tax, l4,
+      aktywne: aktywne.length,
+      wygasajace: wygasajace.length,
+      klienciZPolisami,
+      totalAll: aktywne.reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0),
+    };
+  }, [companies]);
 
-  const totalRevenue = visible.reduce((s: number, c: {revenue: number}) => s + c.revenue, 0);
-  const closedRevenue = visible.filter(c => c.status === 'zamkniety').reduce((s: number, c: {revenue: number}) => s + c.revenue, 0);
-  const conversionRate = visible.length > 0
-    ? ((visible.filter(c => c.status === 'zamkniety').length / visible.length) * 100).toFixed(1)
-    : '0';
-
-  const totalHistory = visible.reduce((s, c) => s + c.history.length, 0);
-  const totalReminders = visible.reduce((s, c) => s + c.reminders.length, 0);
-
-  const STAGE_COLORS: Record<string, string> = {
-    lead: 'bg-gray-400', kontakt: 'bg-blue-400', oferta: 'bg-amber-400',
-    negocjacje: 'bg-purple-400', zamkniety: 'bg-emerald-400', stracony: 'bg-red-400',
-  };
+  const KPI = ({ label, value, sub, color='text-zinc-900', bg='bg-white border-zinc-200' }: { label: string; value: string; sub?: string; color?: string; bg?: string }) => (
+    <div className={`border p-5 ${bg}`}>
+      <div className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">{label}</div>
+      <div className={`text-3xl font-black font-mono ${color}`}>{value}</div>
+      {sub && <div className="text-xs text-zinc-400 mt-1">{sub}</div>}
+    </div>
+  );
 
   return (
-    <div className="space-y-6 overflow-y-auto h-full pr-1">
-      {/* KPI row */}
-      <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: 'Łączny przychód', value: formatRevenue(totalRevenue), sub: 'wszystkie firmy' },
-          { label: 'Zamknięty przychód', value: formatRevenue(closedRevenue), sub: `${visible.filter(c => c.status === 'zamkniety').length} firm` },
-          { label: 'Konwersja', value: `${conversionRate}%`, sub: 'lead → zamknięty' },
-          { label: 'Aktywności', value: totalHistory.toString(), sub: `${totalReminders} przypomnień` },
-        ].map(kpi => (
-          <div key={kpi.label} className="bg-white border border-zinc-200 p-4">
-            <div className="text-xs text-zinc-400 uppercase tracking-widest mb-1">{kpi.label}</div>
-            <div className="text-2xl font-bold font-mono text-zinc-900 mb-1">{kpi.value}</div>
-            <div className="text-xs text-zinc-400">{kpi.sub}</div>
-          </div>
-        ))}
+    <div className="h-full overflow-y-auto">
+      <div className="mb-5">
+        <h2 className="text-lg font-bold text-zinc-900">Raporty — BeautyPolisa</h2>
+        <div className="text-sm text-zinc-500">{companies.length} salonów · {stats.klienciZPolisami} z aktywną polisą</div>
       </div>
 
-      {/* Pipeline chart */}
-      <div className="bg-white border border-zinc-200 p-5">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-zinc-900 text-sm uppercase tracking-widest">Pipeline wg etapu</h3>
-        </div>
-        <div className="space-y-3">
-          {byStage.map(s => (
-            <div key={s.key} className="flex items-center gap-4">
-              <div className="w-28 text-xs text-zinc-600 text-right flex-shrink-0">{s.label}</div>
-              <div className="flex-1 flex items-center gap-3">
-                <div className="flex-1 bg-zinc-100 h-6 relative">
-                  <div
-                    className={`h-full ${STAGE_COLORS[s.key]} transition-all`}
-                    style={{ width: `${(s.revenue / maxRev) * 100}%`, minWidth: s.revenue > 0 ? '2px' : '0' }}
-                  />
-                </div>
-                <div className="w-24 text-xs font-mono text-zinc-700 text-right">{formatRevenue(s.revenue)}</div>
-                <div className="w-12 text-xs font-mono text-zinc-400 text-right">{s.companies.length} firm</div>
-              </div>
-            </div>
-          ))}
+      {/* Składki TOTAL wg roku */}
+      <div className="mb-4">
+        <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">💰 Składki TOTAL (rok kalendarzowy)</div>
+        <div className="grid grid-cols-3 gap-3">
+          <KPI label="Składki 2025" value={fmtPLN(stats.skladka2025)} sub="polisy z data_od w 2025" color="text-zinc-600" bg="bg-zinc-50 border-zinc-200"/>
+          <KPI label="Składki 2026" value={fmtPLN(stats.skladka2026)} sub="polisy z data_od w 2026" color="text-emerald-700" bg="bg-emerald-50 border-emerald-200"/>
+          <KPI label="Wszystkie aktywne" value={fmtPLN(stats.totalAll)} sub={`${stats.aktywne} aktywnych polis`} color="text-zinc-900" bg="bg-white border-zinc-300"/>
         </div>
       </div>
 
-      {/* City + Industry */}
-      <div className="grid grid-cols-2 gap-4">
-        <div className="bg-white border border-zinc-200 p-5">
-          <h3 className="font-bold text-zinc-900 text-sm uppercase tracking-widest mb-4">Top miasta</h3>
-          <div className="space-y-2">
-            {byCity.map(([city, data]) => (
-              <div key={city} className="flex items-center gap-3">
-                <div className="w-24 text-xs text-zinc-600 truncate flex-shrink-0">{city}</div>
-                <div className="flex-1 bg-zinc-100 h-5 relative">
-                  <div className="h-full bg-zinc-900 transition-all" style={{ width: `${(data.revenue / maxCityRev) * 100}%` }} />
-                </div>
-                <div className="w-20 text-xs font-mono text-zinc-700 text-right">{formatRevenue(data.revenue)}</div>
-                <div className="w-8 text-xs text-zinc-400 text-right">{data.count}</div>
-              </div>
-            ))}
+      {/* Polisy wg rodzaju */}
+      <div className="mb-4">
+        <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">🛡️ Polisy wg rodzaju</div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-blue-50 border border-blue-200 p-5">
+            <div className="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-2">Polisy OC</div>
+            <div className="text-3xl font-black font-mono text-blue-700 mb-1">{stats.oc.count}</div>
+            <div className="text-sm font-mono font-bold text-blue-600">{fmtPLN(stats.oc.skladka)}</div>
+            <div className="text-xs text-blue-400 mt-1">{stats.oc.companies} salonów</div>
           </div>
-        </div>
-
-        <div className="bg-white border border-zinc-200 p-5">
-          <h3 className="font-bold text-zinc-900 text-sm uppercase tracking-widest mb-4">Top branże</h3>
-          <div className="space-y-2">
-            {byIndustry.map(([ind, data]) => (
-              <div key={ind} className="flex items-center gap-3">
-                <div className="w-36 text-xs text-zinc-600 truncate flex-shrink-0" title={ind}>{ind}</div>
-                <div className="flex-1 bg-zinc-100 h-5 relative">
-                  <div className="h-full bg-amber-400 transition-all" style={{ width: `${(data.revenue / maxIndRev) * 100}%` }} />
-                </div>
-                <div className="w-20 text-xs font-mono text-zinc-700 text-right">{formatRevenue(data.revenue)}</div>
-                <div className="w-8 text-xs text-zinc-400 text-right">{data.count}</div>
-              </div>
-            ))}
+          <div className="bg-amber-50 border border-amber-200 p-5">
+            <div className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-2">Polisy TAX (karno-skarbowa)</div>
+            <div className="text-3xl font-black font-mono text-amber-700 mb-1">{stats.tax.count}</div>
+            <div className="text-sm font-mono font-bold text-amber-600">{fmtPLN(stats.tax.skladka)}</div>
+            <div className="text-xs text-amber-400 mt-1">{stats.tax.companies} salonów</div>
+          </div>
+          <div className="bg-purple-50 border border-purple-200 p-5">
+            <div className="text-[10px] font-bold text-purple-400 uppercase tracking-widest mb-2">Polisy L4 (utrata dochodu)</div>
+            <div className="text-3xl font-black font-mono text-purple-700 mb-1">{stats.l4.count}</div>
+            <div className="text-sm font-mono font-bold text-purple-600">{fmtPLN(stats.l4.skladka)}</div>
+            <div className="text-xs text-purple-400 mt-1">{stats.l4.companies} salonów</div>
           </div>
         </div>
       </div>
 
-      {/* Activity */}
-      <div className="bg-white border border-zinc-200 p-5">
-        <h3 className="font-bold text-zinc-900 text-sm uppercase tracking-widest mb-4">Aktywność — top 10 firm</h3>
-        <div className="space-y-2">
-          {[...visible]
-            .sort((a, b) => (b.history.length + b.reminders.length) - (a.history.length + a.reminders.length))
-            .slice(0, 10)
-            .map(c => (
-              <div key={c.id} className="flex items-center gap-4 py-1">
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm text-zinc-800 truncate">{c.company}</div>
-                  <div className="text-xs text-zinc-400">{c.city} · {c.industry}</div>
-                </div>
-                <div className="flex gap-4 text-xs text-zinc-500 flex-shrink-0">
-                  <span className="font-mono">{c.history.length} wpis{c.history.length === 1 ? '' : c.history.length < 5 ? 'y' : 'ów'}</span>
-                  <span className="font-mono">{c.reminders.length} przyp.</span>
-                  <span className="font-mono font-medium text-zinc-900">{formatRevenue(c.revenue)}</span>
-                </div>
-              </div>
-            ))}
+      {/* Alerty */}
+      <div className="mb-4">
+        <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">⚠️ Alerty</div>
+        <div className="grid grid-cols-3 gap-3">
+          <KPI label="Wygasa w ciągu 45 dni" value={String(stats.wygasajace)} sub="wymaga kontaktu" color={stats.wygasajace > 0 ? 'text-red-600' : 'text-zinc-400'} bg={stats.wygasajace > 0 ? 'bg-red-50 border-red-200' : 'bg-white border-zinc-200'}/>
+          <KPI label="Klienci z polisą" value={String(stats.klienciZPolisami)} sub={`z ${companies.length} salonów`} color="text-emerald-700" bg="bg-emerald-50 border-emerald-200"/>
+          <KPI label="Bez polisy" value={String(companies.filter(c=>c.status==='zamkniety'&&c.policies.length===0).length)} sub="status Klient, brak polisy" color="text-amber-700" bg="bg-amber-50 border-amber-200"/>
         </div>
       </div>
     </div>

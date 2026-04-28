@@ -41,6 +41,7 @@ function dbRowToPolicy(row: Record<string,unknown>): Policy {
     dataOd: (row.data_od as string) ?? '',
     dataDo: (row.data_do as string) ?? '',
     przypomnienie: (row.przypomnienie as string) ?? '',
+    ochronaPrawna: (row.ochrona_prawna as boolean) ?? false,
     status: ((row.status as string) ?? 'aktywna') as Policy['status'],
     notes: (row.notes as string) ?? '',
     createdAt: (row.created_at as string) ?? '',
@@ -173,6 +174,7 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       data_od: policyData.dataOd || null,
       data_do: policyData.dataDo || null,
       przypomnienie: przypomnienie || null,
+      ochrona_prawna: policyData.ochronaPrawna ?? false,
       status: policyData.status,
       notes: policyData.notes,
       created_by: currentUser?.name ?? '',
@@ -203,6 +205,7 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     if (data.skladkaOkres !== undefined) dbData.skladka_okres = data.skladkaOkres;
     if (data.dataOd !== undefined) dbData.data_od = data.dataOd;
     if (data.dataDo !== undefined) { dbData.data_do = data.dataDo; dbData.przypomnienie = calcReminderDate(data.dataDo); }
+    if (data.ochronaPrawna !== undefined) dbData.ochrona_prawna = data.ochronaPrawna;
     if (data.status !== undefined) dbData.status = data.status;
     if (data.notes !== undefined) dbData.notes = data.notes;
     await supabase.from('crm_policies').update(dbData).eq('id', policyId);

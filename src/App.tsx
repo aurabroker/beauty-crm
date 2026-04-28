@@ -12,10 +12,12 @@ import { Calendar } from './components/Calendar';
 import { Reports } from './components/Reports';
 import { AdminPanel } from './components/AdminPanel';
 import { Clients } from './components/Clients';
+import { Home } from './components/Home';
 
-type View = 'dashboard' | 'pipeline' | 'klienci' | 'calendar' | 'reports' | 'admin';
+type View = 'home' | 'dashboard' | 'pipeline' | 'klienci' | 'calendar' | 'reports' | 'admin';
 
 const NAV: { key: View; label: string }[] = [
+  { key:'home',      label:'HOME' },
   { key:'dashboard', label:'Firmy' },
   { key:'pipeline',  label:'Pipeline' },
   { key:'klienci',   label:'Klienci' },
@@ -56,7 +58,7 @@ export default function App() {
 
 function CRMApp() {
   const { currentUser, users, setCurrentUser, companies, loadData, loading } = useCRMStore();
-  const [view, setView] = useState<View>('dashboard');
+  const [view, setView] = useState<View>('home');
   const [selectedCompany, setSelectedCompany] = useState<Company|null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
@@ -100,7 +102,7 @@ function CRMApp() {
         <div className="flex items-center h-12 px-4">
           <div className="font-black text-base tracking-tight mr-6 flex-shrink-0 flex items-center gap-1.5">
             <div className="w-6 h-6 bg-pink-500 flex items-center justify-center text-white text-xs font-black">B</div>
-            <span className="text-white">BeautyPolisa</span>
+            <span className="text-white">AuraBeauty</span>
             <span className="text-pink-400 text-[10px] font-medium ml-0.5 uppercase tracking-widest">CRM</span>
           </div>
 
@@ -167,6 +169,7 @@ function CRMApp() {
       </header>
 
       <main className="flex-1 overflow-hidden p-5" onClick={() => showUserMenu && setShowUserMenu(false)}>
+        {view === 'home'      && <Home onSelectCompany={setSelectedCompany}/>}
         {view === 'dashboard' && <Dashboard onSelectCompany={setSelectedCompany}/>}
         {view === 'pipeline'  && <Pipeline onSelectCompany={setSelectedCompany}/>}
         {view === 'klienci'   && <Clients onSelectCompany={setSelectedCompany}/>}

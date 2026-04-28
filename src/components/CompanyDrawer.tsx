@@ -37,7 +37,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
   const [saving, setSaving] = useState(false);
 
   const { today, plus12 } = today12m();
-  const emptyForm = () => ({ nrPolisy:'', rodzaj:'', sumaUbezpieczenia:'', skladka:'', skladkaOkres:'jednorazowa' as 'jednorazowa'|'miesięczna'|'kwartalna'|'roczna', dataOd: today, dataDo: plus12, status:'aktywna' as 'aktywna'|'wygasła'|'anulowana', notes:'' });
+  const emptyForm = () => ({ nrPolisy:'', rodzaj:'', sumaUbezpieczenia:'', skladka:'', skladkaOkres:'jednorazowa' as 'jednorazowa'|'miesięczna'|'kwartalna'|'roczna', dataOd: today, dataDo: plus12, status:'aktywna' as 'aktywna'|'wygasła'|'anulowana', notes:'', ochronaPrawna: false });
   const [policyForm, setPolicyForm] = useState(emptyForm());
 
   const activePolicies = company.policies.filter(p => p.status === 'aktywna');
@@ -59,7 +59,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
     const p = company.policies.find(p => p.id === policyId);
     if (!p) return;
     setPolicyForm({
-      nrPolisy: p.nrPolisy, rodzaj: p.rodzaj,
+      nrPolisy: p.nrPolisy, rodzaj: p.rodzaj, ochronaPrawna: p.ochronaPrawna ?? false,
       sumaUbezpieczenia: p.sumaUbezpieczenia.replace(/[^\d]/g,''),
       skladka: p.skladka?.toString() ?? '',
       skladkaOkres: p.skladkaOkres, dataOd: p.dataOd?.slice(0,10) ?? '',
@@ -82,7 +82,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
     if (editingPolicyId) {
       await updatePolicy(editingPolicyId, data);
     } else {
-      await addPolicy(company.id, { ...data, przypomnienie: calcReminder(policyForm.dataDo) });
+      await addPolicy(company.id, { ...data, ochronaPrawna: policyForm.ochronaPrawna, przypomnienie: calcReminder(policyForm.dataDo) });
     }
     setPolicyForm(emptyForm()); setShowPolicyForm(false); setEditingPolicyId(null); setSaving(false);
   };
@@ -230,8 +230,9 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                           <div>
                             <div className="text-xs text-zinc-400 mb-0.5">Składka</div>
                             <div className="font-mono font-semibold text-zinc-900">
-                              {p.skladka ? `${p.skladka.toLocaleString('pl-PL')} zł` : '—'}
+                              {p.skladka ? `${(p.skladka + (p.ochronaPrawna ? 92 : 0)).toLocaleString('pl-PL')} zł` : '—'}
                               <span className="text-xs text-zinc-400 font-normal ml-1">{p.skladkaOkres === 'jednorazowa' ? '(jednorazowa)' : `/${p.skladkaOkres === 'miesięczna' ? 'mies.' : p.skladkaOkres === 'kwartalna' ? 'kw.' : 'rok'}`}</span>
+                              {p.ochronaPrawna && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 ml-1">+ochrona 92zł</span>}
                             </div>
                           </div>
                           <div>

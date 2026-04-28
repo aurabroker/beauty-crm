@@ -18,6 +18,7 @@ export interface Policy {
   dataOd: string;
   dataDo: string;
   przypomnienie: string;
+  ochronaPrawna: boolean;
   status: 'aktywna' | 'wygasła' | 'anulowana';
   notes: string;
   createdAt: string;
