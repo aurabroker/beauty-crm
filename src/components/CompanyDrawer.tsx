@@ -74,7 +74,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
     setSaving(true);
     const data = {
       nrPolisy: policyForm.nrPolisy, rodzaj: policyForm.rodzaj,
-      sumaUbezpieczenia: policyForm.sumaUbezpieczenia ? `${Number(policyForm.sumaUbezpieczenia).toLocaleString('pl-PL')} PLN` : '',
+      sumaUbezpieczenia: policyForm.sumaUbezpieczenia ? policyForm.sumaUbezpieczenia.replace(/\s/g,'').replace(/[^\d]/g,'') ? `${Number(policyForm.sumaUbezpieczenia.replace(/\s/g,'')).toLocaleString('pl-PL')} PLN` : policyForm.sumaUbezpieczenia : '',
       skladka: policyForm.skladka ? Number(policyForm.skladka) : null,
       skladkaOkres: policyForm.skladkaOkres, dataOd: policyForm.dataOd,
       dataDo: policyForm.dataDo, status: policyForm.status, notes: policyForm.notes,

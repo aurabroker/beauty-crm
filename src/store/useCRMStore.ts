@@ -23,6 +23,7 @@ function dbRowToCompany(row: Record<string,unknown>, history: ContactHistory[]=[
     przychod: (row.przychod as string) ?? '',
     tag: (row.tag as string) ?? '',
     zainteresowania: (row.zainteresowania as string) ?? '',
+    leadSource: (row.lead_source as string) ?? '',
     status: (row.status as Company['status']) ?? 'lead',
     assignedTo: (row.assigned_to as string) ?? '',
     history, reminders, policies,
@@ -132,6 +133,7 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     const dbFields: Record<string,unknown> = {};
     if (data.tag !== undefined) dbFields.tag = data.tag;
     if (data.zainteresowania !== undefined) dbFields.zainteresowania = data.zainteresowania;
+    if (data.leadSource !== undefined) dbFields.lead_source = data.leadSource;
     if (data.status !== undefined) dbFields.status = data.status;
     if (Object.keys(dbFields).length > 0) {
       supabase.from('crm_companies').update(dbFields).eq('id', id).then();

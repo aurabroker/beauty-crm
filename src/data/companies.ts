@@ -38,6 +38,7 @@ export interface Company {
   ubezpieczenie?: string; przychod?: string;
   tag?: string;
   zainteresowania?: string;
+  leadSource?: string;
   status: Status; assignedTo?: string; assignedUserId?: string;
   history: ContactHistory[]; reminders: Reminder[]; policies: Policy[];
 }

@@ -27,6 +27,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const [search, setSearch]             = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTag, setFilterTag]       = useState('all');
+  const [filterSource, setFilterSource]  = useState('all');
   const [sortKey, setSortKey]           = useState<SortKey>('company');
   const [sortDir, setSortDir]           = useState<'asc'|'desc'>('asc');
   const [showAdd, setShowAdd]           = useState(false);
@@ -74,6 +75,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
     if (filterStatus !== 'all') r = r.filter(c => c.status === filterStatus);
     if (filterTag === '__none') r = r.filter(c => !c.tag || c.tag.trim() === '');
     else if (filterTag !== 'all') r = r.filter(c => c.tag === filterTag);
+    if (filterSource !== 'all') r = r.filter(c => (c.leadSource ?? '') === filterSource);
     return [...r].sort((a, b) => {
       if (sortKey === 'employees') {
         const va = parseInt(a.employees||'0')||0, vb = parseInt(b.employees||'0')||0;
@@ -163,6 +165,16 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
           <SelectContent className="rounded-none">
             <SelectItem value="all">Wszystkie statusy</SelectItem>
             {stages.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Select value={filterSource} onValueChange={setFilterSource}>
+          <SelectTrigger className="w-44 h-9 text-sm rounded-none border-zinc-200 focus:ring-0"><SelectValue placeholder="Źródło"/></SelectTrigger>
+          <SelectContent className="rounded-none">
+            <SelectItem value="all">🌐 Wszystkie źródła</SelectItem>
+            <SelectItem value="klient własny">⭐ Klient własny</SelectItem>
+            <SelectItem value="formularz">📋 Formularz</SelectItem>
+            <SelectItem value="import">📥 Import CSV</SelectItem>
+            <SelectItem value="getresponse">📧 GetResponse</SelectItem>
           </SelectContent>
         </Select>
         <Select value={filterTag} onValueChange={setFilterTag}>
@@ -266,6 +278,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
                   {c.zainteresowania
                     ? <div className="flex flex-wrap gap-1">{c.zainteresowania.split(',').map(z => <span key={z} className="text-[10px] px-1.5 py-0.5 bg-pink-100 text-pink-700 font-medium">{z.trim()}</span>)}</div>
                     : <span className="text-zinc-300 text-xs">—</span>}
+                  {c.leadSource === 'klient własny' && <span className="text-[10px] px-1.5 py-0.5 bg-amber-100 text-amber-700 font-bold mt-0.5 inline-block">⭐ własny</span>}
                 </td>
                 <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
                   <select value={c.tag ?? ''} onChange={e => updateCompany(c.id, { tag: e.target.value })}
