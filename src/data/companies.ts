@@ -39,6 +39,8 @@ export interface Company {
   tag?: string;
   zainteresowania?: string;
   leadSource?: string;
+  grStatus?: string;
+  grSentAt?: string;
   status: Status; assignedTo?: string; assignedUserId?: string;
   history: ContactHistory[]; reminders: Reminder[]; policies: Policy[];
 }

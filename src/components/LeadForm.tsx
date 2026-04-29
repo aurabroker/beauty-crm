@@ -136,7 +136,7 @@ export function LeadForm() {
               <input type="checkbox" checked={form.rodo} onChange={e => setForm(p => ({...p, rodo: e.target.checked}))}
                 className="mt-1 accent-pink-500 w-4 h-4 flex-shrink-0"/>
               <span className="text-xs text-zinc-500 leading-relaxed">
-                Wyrażam zgodę na przetwarzanie moich danych osobowych przez Aura Consulting w celu przedstawienia oferty ubezpieczeniowej, zgodnie z{' '}
+                Wyrażam zgodę na przetwarzanie moich danych osobowych przez Aura Expert sp. z o.o. w celu przedstawienia oferty ubezpieczeniowej, zgodnie z{' '}
                 <button type="button" onClick={() => setShowPrivacy(true)} className="text-pink-600 hover:underline font-semibold">
                   Polityką Prywatności
                 </button>. <span className="text-zinc-400">(wymagane)</span>
@@ -152,7 +152,7 @@ export function LeadForm() {
           </button>
         </form>
 
-        <div className="mt-3 text-center text-[11px] text-zinc-400">🔒 Dane chronione zgodnie z RODO · Aura Consulting</div>
+        <div className="mt-3 text-center text-[11px] text-zinc-400">🔒 Dane chronione zgodnie z RODO · Aura Expert sp. z o.o.</div>
       </div>
 
       {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)}/>}

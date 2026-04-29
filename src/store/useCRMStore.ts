@@ -24,6 +24,8 @@ function dbRowToCompany(row: Record<string,unknown>, history: ContactHistory[]=[
     tag: (row.tag as string) ?? '',
     zainteresowania: (row.zainteresowania as string) ?? '',
     leadSource: (row.lead_source as string) ?? '',
+    grStatus: (row.gr_status as string) ?? '',
+    grSentAt: (row.gr_sent_at as string) ?? '',
     status: (row.status as Company['status']) ?? 'lead',
     assignedTo: (row.assigned_to as string) ?? '',
     history, reminders, policies,
@@ -73,6 +75,7 @@ interface CRMState {
   deleteUser: (id: string) => Promise<void>;
   updateUser: (id: string, data: Partial<CRMUser>) => Promise<void>;
   updateStages: (stages: PipelineStage[]) => Promise<void>;
+  sendToGR: (companyId: number) => Promise<void>;
   importCompanies: (rows: Partial<Company>[]) => Promise<{ imported: number; merged: number; errors: number }>;
 }
 
@@ -237,6 +240,21 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
   updateStages: async (stages) => {
     set({ stages });
     await supabase.from('crm_settings').upsert({ key: 'pipeline_stages', value: stages as unknown as Record<string,unknown>, updated_at: new Date().toISOString() });
+  },
+
+  sendToGR: async (companyId) => {
+    const co = get().companies.find(c => c.id === companyId);
+    if (!co) return;
+    const res = await fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
+      body: JSON.stringify({ company: co.company, contact: co.contact, email: co.email, phone: co.phone, nip: co.nip, ubezpieczenie: co.ubezpieczenie, przychod: co.przychod, tag: co.tag ?? '', lead_source: co.leadSource ?? '', send_to_gr: true }),
+    }).catch(() => null);
+    const ok = res?.ok ?? false;
+    const now = new Date().toISOString();
+    const status = ok ? 'ok' : 'error';
+    await supabase.from('crm_companies').update({ gr_status: status, gr_sent_at: now }).eq('id', companyId);
+    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, grStatus: status, grSentAt: now } : c) }));
   },
 
   importCompanies: async (rows) => {

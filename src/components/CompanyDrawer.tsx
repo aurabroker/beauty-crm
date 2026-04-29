@@ -26,13 +26,16 @@ type Tab = 'info' | 'polisy' | 'historia' | 'przypomnienia';
 
 export function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => void }) {
   const { stages, addHistory, addReminder, toggleReminder, deleteReminder, updateCompanyStatus,
-          addPolicy, updatePolicy, deletePolicy, updateCompany, currentUser } = useCRMStore();
+          addPolicy, updatePolicy, deletePolicy, updateCompany, sendToGR, currentUser } = useCRMStore();
+  const [sendingGR, setSendingGR] = useState(false);
   const [tab, setTab] = useState<Tab>('info');
   const [histType, setHistType] = useState<ContactHistory['type']>('notatka');
   const [histNote, setHistNote] = useState('');
   const [reminderText, setReminderText] = useState('');
   const [reminderDate, setReminderDate] = useState('');
   const [editingPolicyId, setEditingPolicyId] = useState<string|null>(null);
+  const [editingFirma, setEditingFirma] = useState(false);
+  const [editFirmaForm, setEditFirmaForm] = useState({ company:'', contact:'', phone:'', email:'', nip:'', city:'', ubezpieczenie:'', przychod:'', notes:'' });
   const [showPolicyForm, setShowPolicyForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -99,6 +102,29 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
 
   const cancelForm = () => { setPolicyForm(emptyForm()); setShowPolicyForm(false); setEditingPolicyId(null); };
 
+  // eslint-disable-next-line
+  const startEditFirma = () => {
+    setEditFirmaForm({
+      company: company.company, contact: company.contact, phone: company.phone,
+      email: company.email, nip: company.nip ?? '', city: company.city,
+      ubezpieczenie: company.ubezpieczenie ?? '', przychod: company.przychod ?? '',
+      notes: company.notes ?? '',
+    });
+    setEditingFirma(true);
+    setTab('info');
+  };
+
+  const saveEditFirma = async () => {
+    await updateCompany(company.id, editFirmaForm as Partial<Company>);
+    setEditingFirma(false);
+  };
+
+  const handleSendToGR = async () => {
+    setSendingGR(true);
+    await sendToGR(company.id);
+    setSendingGR(false);
+  };
+
   const reminderPreview = policyForm.dataDo ? calcReminder(policyForm.dataDo) : '';
 
   return (
@@ -115,7 +141,10 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
               <h2 className="font-bold text-xl leading-tight">{company.company}</h2>
               {company.contact && <div className="text-zinc-400 text-sm mt-0.5">{company.contact} {company.title && `· ${company.title}`}</div>}
             </div>
-            <button onClick={onClose} className="text-zinc-400 hover:text-white text-2xl mt-1">✕</button>
+            <div className="flex items-center gap-2">
+              <button onClick={startEditFirma} className="text-xs px-3 py-1.5 border border-zinc-600 text-zinc-300 hover:border-white hover:text-white transition-colors">✏ Edytuj firmę</button>
+              <button onClick={onClose} className="text-zinc-400 hover:text-white text-2xl mt-1">✕</button>
+            </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
             <Select value={company.status} onValueChange={v => updateCompanyStatus(company.id, v as Company['status'])}>
@@ -130,6 +159,11 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
               <span className="text-xs bg-emerald-500 text-white px-2 py-0.5 font-medium">🛡️ {activePolicies.length} polisa</span>
             )}
             {company.nip && <span className="text-xs text-zinc-400 font-mono">NIP: {company.nip}</span>}
+            {/* GR Status */}
+            <span className={`text-xs px-2 py-0.5 font-medium cursor-pointer ${company.grStatus==='ok' ? 'bg-emerald-600 text-white' : 'bg-red-900 text-red-300'}`}
+              onClick={handleSendToGR} title="Kliknij żeby wysłać do GetResponse">
+              {sendingGR ? '⏳ Wysyłam...' : company.grStatus==='ok' ? `✓ GR export OK` : '✗ Brak w GR'}
+            </span>
           </div>
         </div>
 
@@ -151,58 +185,98 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
 
           {/* ── INFO ── */}
           {tab === 'info' && (
-            <div className="p-6 grid grid-cols-2 gap-5">
-              <div className="space-y-4">
-                <Section title="Dane firmy">
-                  <Row label="Branża"     value={company.industry || '—'}/>
-                  <Row label="Miasto"     value={company.city || '—'}/>
-                  <Row label="NIP"        value={company.nip || '—'} mono/>
-                  <Row label="Pracownicy" value={company.employees ? Number(company.employees).toLocaleString('pl-PL') : '—'} mono/>
-                  {company.url && <Row label="WWW" value={<a href={company.url} target="_blank" rel="noopener" className="text-blue-600 hover:underline text-sm">{company.url.replace(/https?:\/\//,'')}</a>}/>}
-                </Section>
-
-                {/* Zainteresowania — widoczne w Lead */}
-                <div className="border border-dashed border-pink-200 bg-pink-50 p-3">
-                  <div className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-2">Zainteresowania (z leadu)</div>
-                  {company.zainteresowania
-                    ? <div className="flex flex-wrap gap-1.5">
-                        {company.zainteresowania.split(',').map(z => (
-                          <span key={z} className="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 font-medium border border-pink-200">{z.trim()}</span>
-                        ))}
+            <div className="p-6">
+              {editingFirma ? (
+                /* TRYB EDYCJI */
+                <div>
+                  <div className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Edycja danych firmy</div>
+                  <div className="grid grid-cols-2 gap-3 mb-4">
+                    {([['Nazwa firmy *','company'],['Kontakt','contact'],['Telefon','phone'],['E-mail','email'],['NIP','nip'],['Miejscowość','city'],['Zainteresowania','ubezpieczenie'],['Przychód','przychod']] as [string,string][]).map(([label,key])=>(
+                      <div key={key}>
+                        <div className="text-xs text-zinc-500 mb-1">{label}</div>
+                        <input value={(editFirmaForm as Record<string,string>)[key]} onChange={e=>setEditFirmaForm(p=>({...p,[key]:e.target.value}))}
+                          className="w-full h-9 border border-zinc-200 px-3 text-sm focus:outline-none focus:border-zinc-900 bg-white"/>
                       </div>
-                    : <div className="text-xs text-zinc-400">Brak zainteresowań z leadu</div>
-                  }
-                  {company.ubezpieczenie && company.ubezpieczenie !== company.zainteresowania && (
-                    <div className="mt-2 text-xs text-zinc-400">Lead: {company.ubezpieczenie}</div>
-                  )}
-                </div>
-
-                <Section title="Tag zadaniowy">
-                  <div className="px-3 py-2">
-                    <select value={company.tag ?? ''} onChange={e => updateCompany(company.id, { tag: e.target.value })}
-                      className="w-full text-sm border border-zinc-200 px-2 py-1.5 bg-white focus:outline-none focus:border-zinc-900">
-                      <option value="">— bez tagu —</option>
-                      {TAGI_ZADANIOWE.map(t => <option key={t} value={t}>{t}</option>)}
-                    </select>
+                    ))}
+                    <div className="col-span-2">
+                      <div className="text-xs text-zinc-500 mb-1">Notatki</div>
+                      <textarea value={editFirmaForm.notes} onChange={e=>setEditFirmaForm(p=>({...p,notes:e.target.value}))} rows={3}
+                        className="w-full border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 resize-none bg-white"/>
+                    </div>
                   </div>
-                </Section>
-              </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => setEditingFirma(false)} className="px-4 py-2 text-sm border border-zinc-200 text-zinc-600 hover:border-zinc-900">Anuluj</button>
+                    <button onClick={saveEditFirma} className="px-4 py-2 text-sm bg-zinc-900 text-white hover:bg-zinc-700">✓ Zapisz zmiany</button>
+                  </div>
+                </div>
+              ) : (
+                /* WIDOK INFORMACJI */
+                <div className="grid grid-cols-2 gap-5">
+                  <div className="space-y-4">
+                    <Section title="Dane firmy">
+                      <Row label="Branża"     value={company.industry || '—'}/>
+                      <Row label="Miasto"     value={company.city || '—'}/>
+                      <Row label="NIP"        value={company.nip || '—'} mono/>
+                      <Row label="Pracownicy" value={company.employees ? Number(company.employees).toLocaleString('pl-PL') : '—'} mono/>
+                      {company.url && <Row label="WWW" value={<a href={company.url} target="_blank" rel="noopener" className="text-blue-600 hover:underline text-sm">{company.url.replace(/https?:\/\//,'')}</a>}/>}
+                    </Section>
 
-              <div className="space-y-4">
-                <Section title="Kontakt">
-                  <Row label="Osoba"     value={company.contact || '—'}/>
-                  {company.phone && <Row label="Telefon" value={<a href={`tel:${company.phone}`} className="text-blue-600 hover:underline">{company.phone}</a>}/>}
-                  {company.email && <Row label="E-mail"  value={<a href={`mailto:${company.email}`} className="text-blue-600 hover:underline text-xs break-all">{company.email}</a>}/>}
-                </Section>
-                <Section title="Dane z formularza">
-                  {company.przychod && <Row label="Przychód" value={company.przychod}/>}
-                </Section>
-                {company.notes && (
-                  <Section title="Notatki">
-                    <div className="px-3 py-2 text-sm text-zinc-600 whitespace-pre-wrap">{company.notes}</div>
-                  </Section>
-                )}
-              </div>
+                    <div className="border border-dashed border-pink-200 bg-pink-50 p-3">
+                      <div className="text-[10px] font-bold text-pink-400 uppercase tracking-widest mb-2">Zainteresowania (z leadu)</div>
+                      {company.zainteresowania
+                        ? <div className="flex flex-wrap gap-1.5">
+                            {company.zainteresowania.split(',').map(z => (
+                              <span key={z} className="text-xs px-2 py-0.5 bg-pink-100 text-pink-700 font-medium border border-pink-200">{z.trim()}</span>
+                            ))}
+                          </div>
+                        : <div className="text-xs text-zinc-400">Brak zainteresowań z leadu</div>
+                      }
+                    </div>
+
+                    <Section title="Tag zadaniowy">
+                      <div className="px-3 py-2">
+                        <select value={company.tag ?? ''} onChange={e => updateCompany(company.id, { tag: e.target.value })}
+                          className="w-full text-sm border border-zinc-200 px-2 py-1.5 bg-white focus:outline-none focus:border-zinc-900">
+                          <option value="">— bez tagu —</option>
+                          {TAGI_ZADANIOWE.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
+                    </Section>
+                  </div>
+
+                  <div className="space-y-4">
+                    <Section title="Kontakt">
+                      <Row label="Osoba"  value={company.contact || '—'}/>
+                      {company.phone && <Row label="Telefon" value={<a href={`tel:${company.phone}`} className="text-blue-600 hover:underline">{company.phone}</a>}/>}
+                      {company.email && <Row label="E-mail"  value={<a href={`mailto:${company.email}`} className="text-blue-600 hover:underline text-xs break-all">{company.email}</a>}/>}
+                    </Section>
+                    {company.przychod && (
+                      <Section title="Dane z formularza">
+                        <Row label="Przychód" value={company.przychod}/>
+                      </Section>
+                    )}
+                    {company.notes && (
+                      <Section title="Notatki">
+                        <div className="px-3 py-2 text-sm text-zinc-600 whitespace-pre-wrap">{company.notes}</div>
+                      </Section>
+                    )}
+                    {/* GR wysyłka */}
+                    <div className={`p-3 border ${company.grStatus==='ok' ? 'border-emerald-200 bg-emerald-50' : 'border-red-200 bg-red-50'}`}>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className={`text-xs font-bold ${company.grStatus==='ok' ? 'text-emerald-700' : 'text-red-600'}`}>
+                            {company.grStatus==='ok' ? '✓ GetResponse: export OK' : '✗ GetResponse: brak eksportu'}
+                          </div>
+                          {company.grSentAt && <div className="text-[10px] text-zinc-400 mt-0.5">Ostatnio: {new Date(company.grSentAt).toLocaleDateString('pl-PL')}</div>}
+                        </div>
+                        <button onClick={handleSendToGR} disabled={sendingGR} className="text-xs px-3 py-1.5 bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-40">
+                          {sendingGR ? '⏳...' : '📧 Wyślij do GR'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

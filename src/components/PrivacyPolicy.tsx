@@ -12,7 +12,7 @@ export function PrivacyPolicy({ onClose }: { onClose: () => void }) {
 
           <section>
             <h3 className="font-bold text-zinc-900 mb-2">1. Administrator danych</h3>
-            <p>Administratorem Twoich danych osobowych jest <strong>Aura Consulting</strong>, świadcząca usługi pośrednictwa ubezpieczeniowego. Dane przetwarzane są zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO).</p>
+            <p>Administratorem Twoich danych osobowych jest <strong>Aura Expert sp. z o.o.</strong>, świadcząca usługi pośrednictwa ubezpieczeniowego. Dane przetwarzane są zgodnie z Rozporządzeniem Parlamentu Europejskiego i Rady (UE) 2016/679 (RODO).</p>
           </section>
 
           <section>
@@ -74,7 +74,7 @@ export function PrivacyPolicy({ onClose }: { onClose: () => void }) {
             <h3 className="font-bold text-zinc-900 mb-2">7. Kontakt</h3>
             <p>W sprawach dotyczących ochrony danych osobowych skontaktuj się z nami:</p>
             <ul className="list-disc list-inside space-y-1 mt-2 text-zinc-600">
-              <li>E-mail: <a href="mailto:rodo@auraconsulting.pl" className="text-pink-600 hover:underline">rodo@auraconsulting.pl</a></li>
+              <li>E-mail: <a href="mailto:rodo@auraexpert.pl" className="text-pink-600 hover:underline">rodo@auraexpert.pl</a></li>
             </ul>
           </section>
 
