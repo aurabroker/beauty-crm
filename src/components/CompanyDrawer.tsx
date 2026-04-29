@@ -74,7 +74,17 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
     setSaving(true);
     const data = {
       nrPolisy: policyForm.nrPolisy, rodzaj: policyForm.rodzaj,
-      sumaUbezpieczenia: policyForm.sumaUbezpieczenia ? (policyForm.sumaUbezpieczenia.includes('000') ? policyForm.sumaUbezpieczenia + ' PLN' : `${Number(policyForm.sumaUbezpieczenia.replace(/\s/g,'')) ? Number(policyForm.sumaUbezpieczenia.replace(/\s/g,'')).toLocaleString('pl-PL') + ' PLN' : policyForm.sumaUbezpieczenia}`) : '',
+      sumaUbezpieczenia: (() => {
+        const raw = policyForm.sumaUbezpieczenia.trim();
+        if (!raw) return '';
+        // Jeśli już ma PLN/zł — zwróć jak jest
+        if (raw.includes('PLN') || raw.includes('zł')) return raw;
+        // Jeśli to liczba — sformatuj
+        const num = Number(raw.replace(/\s/g,'').replace(/,/g,'.'));
+        if (!isNaN(num) && num > 0) return num.toLocaleString('pl-PL') + ' PLN';
+        // Inaczej zwróć surowy string (np. "100 000" z przycisku)
+        return raw + ' PLN';
+      })(),
       skladka: policyForm.skladka ? Number(policyForm.skladka) : null,
       skladkaOkres: policyForm.skladkaOkres, dataOd: policyForm.dataOd,
       dataDo: policyForm.dataDo, status: policyForm.status, notes: policyForm.notes,

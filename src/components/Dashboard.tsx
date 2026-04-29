@@ -1,8 +1,7 @@
 import { useState, useMemo, useRef } from 'react';
 import { useCRMStore } from '../store/useCRMStore';
 import type { Company } from '../data/companies';
-import { TAGI_ZADANIOWE } from '../data/companies';
-import { Input } from '@/components/ui/input';
+import { TAGI_ZADANIOWE, RODZAJE_UBEZPIECZEN } from '../data/companies';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface DashboardProps { onSelectCompany: (c: Company) => void; }
@@ -36,11 +35,24 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const [sendToGR, setSendToGR]         = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number|null>(null);
   const [importing, setImporting]       = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [importResult, setImportResult] = useState<{imported:number;merged:number;errors:number}|null>(null);
   const csvRef = useRef<HTMLInputElement>(null);
   const isAdmin = currentUser?.role === 'admin';
 
+
   const visible = isAdmin ? companies : companies.filter(c => !c.assignedTo || c.assignedTo === currentUser?.name);
+
+  const searchSuggestions = useMemo(() => {
+    if (!search.trim() || search.trim().length < 2) return [];
+    const q = search.toLowerCase().trim();
+    return visible.filter((co: Company) =>
+      co.company.toLowerCase().includes(q) ||
+      (co.nip ?? '').includes(q) ||
+      (co.phone ?? '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+      (co.contact ?? '').toLowerCase().includes(q)
+    ).slice(0, 8);
+  }, [visible, search]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const sw = startOfWeek(), sm = startOfMonth(), sy = startOfYear();
@@ -175,9 +187,35 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
       {/* ── Toolbar ── */}
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <div className="relative">
-          <Input placeholder="Szukaj: nazwa, NIP, tel, email, miasto..." value={search} onChange={e => setSearch(e.target.value)}
-            className="w-72 h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 pl-8"/>
-          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-300 text-sm">🔍</span>
+          <input
+            placeholder="Szukaj: nazwa, NIP, telefon, email..."
+            value={search}
+            onChange={e => { setSearch(e.target.value); setShowSuggestions(true); }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            className="w-80 h-9 border border-zinc-300 px-3 pl-8 text-sm focus:outline-none focus:border-zinc-900 bg-white"
+          />
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">🔍</span>
+          {search && <button type="button" onClick={() => { setSearch(''); setShowSuggestions(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 text-xs">✕</button>}
+          {showSuggestions && searchSuggestions.length > 0 && (
+            <div className="absolute z-50 top-full left-0 w-96 bg-white border border-zinc-900 shadow-xl mt-px">
+              {searchSuggestions.map((co: Company) => (
+                <button key={co.id} type="button"
+                  onMouseDown={() => { setSearch(co.company); setShowSuggestions(false); onSelectCompany(co); }}
+                  className="w-full text-left px-3 py-2.5 hover:bg-pink-50 border-b border-zinc-100 last:border-0 flex items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-zinc-900 truncate">{co.company}</div>
+                    <div className="text-xs text-zinc-400 truncate">
+                      {[co.contact, co.phone, co.nip ? 'NIP: '+co.nip : ''].filter(Boolean).join(' · ')}
+                    </div>
+                  </div>
+                  <span className={`text-[10px] px-2 py-0.5 font-medium flex-shrink-0 ${co.status==='zamkniety'?'bg-emerald-100 text-emerald-700':co.status==='kontakt'?'bg-pink-100 text-pink-700':'bg-gray-100 text-gray-600'}`}>
+                    {stages.find(s=>s.key===co.status)?.label ?? co.status}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <Select value={filterStatus} onValueChange={setFilterStatus}>
           <SelectTrigger className="w-36 h-9 text-sm rounded-none border-zinc-200 focus:ring-0"><SelectValue/></SelectTrigger>
@@ -219,14 +257,14 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
       {/* ── Add Modal ── */}
       {showAdd && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e=>{if(e.target===e.currentTarget)setShowAdd(false);}}>
-          <div className="bg-white w-[560px] shadow-2xl border border-zinc-200">
+          <div className="bg-white w-[520px] shadow-2xl border border-zinc-200">
             <div className="bg-zinc-900 text-white px-5 py-4 flex items-center justify-between">
               <span className="font-bold text-sm uppercase tracking-widest">Nowa firma</span>
               <button onClick={() => setShowAdd(false)} className="text-zinc-400 hover:text-white text-lg">✕</button>
             </div>
-            <div className="p-5 grid grid-cols-2 gap-3">
-              {/* Źródło — WŁASNY / BeautyRazem */}
-              <div className="col-span-2 grid grid-cols-2 gap-2 mb-1">
+            <div className="p-5 space-y-3">
+              {/* Źródło */}
+              <div className="grid grid-cols-2 gap-2">
                 {(['własny','BeautyRazem'] as const).map(src => (
                   <button key={src} type="button" onClick={() => setNewCoSource(src)}
                     className={`py-2 text-sm font-bold border-2 transition-colors ${newCoSource===src ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-600 hover:border-zinc-900'}`}>
@@ -234,27 +272,39 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
                   </button>
                 ))}
               </div>
-              {([['Nazwa firmy *','company'],['Kontakt','contact'],['Telefon','phone'],['E-mail','email'],['NIP','nip'],['Rodzaj ubezpieczenia','ubezpieczenie'],['Miasto','city'],['Branża','industry']] as [string,string][]).map(([label,key]) => (
-                <div key={key}>
-                  <div className="text-xs text-zinc-500 mb-1">{label}</div>
-                  <Input value={newCo[key]??''} onChange={e => setNewCo(p=>({...p,[key]:e.target.value}))}
-                    className="h-8 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                </div>
-              ))}
-              {/* Wyślij do GR */}
-              <div className="col-span-2">
-                <label className="flex items-center gap-3 p-3 border border-zinc-200 bg-zinc-50 cursor-pointer hover:bg-zinc-100 transition-colors">
-                  <input type="checkbox" checked={sendToGR} onChange={e => setSendToGR(e.target.checked)} className="w-4 h-4 accent-emerald-600"/>
-                  <div>
-                    <div className="text-sm font-semibold text-zinc-900">📧 Wyślij do GetResponse</div>
-                    <div className="text-xs text-zinc-500">Doda klienta do listy mailingowej GR2026</div>
+              {/* Pola wymagane */}
+              <div className="grid grid-cols-2 gap-2">
+                {([['Nazwa firmy *','company'],['Kontakt *','contact'],['Telefon *','phone'],['E-mail *','email'],['NIP','nip'],['Miejscowość','city']] as [string,string][]).map(([label,key]) => (
+                  <div key={key}>
+                    <div className="text-xs text-zinc-500 mb-1">{label}</div>
+                    <input value={newCo[key]??''} onChange={e => setNewCo(p=>({...p,[key]:e.target.value}))}
+                      className="w-full h-8 border border-zinc-300 px-2 text-sm focus:outline-none focus:border-zinc-900 bg-white"/>
                   </div>
-                </label>
+                ))}
               </div>
+              {/* Rodzaj ubezpieczenia — DROPDOWN */}
+              <div>
+                <div className="text-xs text-zinc-500 mb-1">Rodzaj ubezpieczenia *</div>
+                <select value={newCo.ubezpieczenie??''} onChange={e => setNewCo(p=>({...p, ubezpieczenie: e.target.value}))}
+                  className="w-full h-9 border border-zinc-300 px-2 text-sm focus:outline-none focus:border-zinc-900 bg-white text-zinc-800">
+                  <option value="">— wybierz —</option>
+                  {RODZAJE_UBEZPIECZEN.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </div>
+              {/* Wyślij do GR */}
+              <label className="flex items-center gap-3 p-3 border border-zinc-200 bg-zinc-50 cursor-pointer hover:bg-zinc-100 transition-colors">
+                <input type="checkbox" checked={sendToGR} onChange={e => setSendToGR(e.target.checked)} className="w-4 h-4 accent-emerald-600"/>
+                <div>
+                  <div className="text-sm font-semibold text-zinc-900">📧 Wyślij do GetResponse</div>
+                  <div className="text-xs text-zinc-500">Doda do listy mailingowej GR2026</div>
+                </div>
+              </label>
             </div>
             <div className="px-5 pb-5 flex justify-end gap-2">
               <button onClick={() => setShowAdd(false)} className="px-4 py-2 text-sm border border-zinc-200 text-zinc-600 hover:border-zinc-900">Anuluj</button>
-              <button onClick={handleAdd} disabled={!newCo.company?.trim()} className="px-4 py-2 text-sm bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-40">Zapisz</button>
+              <button onClick={handleAdd}
+                disabled={!newCo.company?.trim() || !newCo.contact?.trim() || !newCo.phone?.trim() || !newCo.email?.trim()}
+                className="px-4 py-2 text-sm bg-zinc-900 text-white hover:bg-zinc-700 disabled:opacity-40">Zapisz</button>
             </div>
           </div>
         </div>
