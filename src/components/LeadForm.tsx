@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { PrivacyPolicy } from './PrivacyPolicy';
 import { supabase } from '../lib/supabase';
 
 const UBEZPIECZENIA = [
@@ -21,6 +22,7 @@ export function LeadForm() {
     ubezpieczenie:'', przychod:'', rodo: false,
   });
   const [loading, setLoading] = useState(false);
+  const [showPrivacy, setShowPrivacy] = useState(false);
   const [sent, setSent]       = useState(false);
   const [error, setError]     = useState('');
 
@@ -115,12 +117,16 @@ export function LeadForm() {
             </select>
           </Field>
 
-          <div className="pt-2 border-t border-zinc-100">
+          <div className="pt-2 border-t border-zinc-100 space-y-3">
             <label className="flex items-start gap-3 cursor-pointer">
               <input type="checkbox" checked={form.rodo} onChange={e => setForm(p => ({...p, rodo: e.target.checked}))}
-                className="mt-0.5 accent-pink-500 w-4 h-4 flex-shrink-0"/>
+                className="mt-1 accent-pink-500 w-4 h-4 flex-shrink-0"/>
               <span className="text-xs text-zinc-500 leading-relaxed">
-                <strong className="text-zinc-700">Zgoda RODO *</strong> — Wyrażam zgodę na przetwarzanie moich danych osobowych przez AuraBeauty w celu przedstawienia oferty ubezpieczeniowej.
+                <strong className="text-zinc-700">Zgoda na przetwarzanie danych *</strong> — Wyrażam zgodę na przetwarzanie moich danych osobowych przez Aura Consulting w celu przedstawienia oferty ubezpieczeniowej i kontaktu handlowego, zgodnie z{' '}
+                <button type="button" onClick={() => setShowPrivacy(true)} className="text-pink-600 hover:underline font-medium">
+                  Polityką Prywatności
+                </button>.
+                Podanie danych jest dobrowolne. Mam prawo wycofać zgodę w dowolnym momencie.
               </span>
             </label>
           </div>
@@ -131,6 +137,7 @@ export function LeadForm() {
           </button>
         </form>
         <div className="mt-4 text-center text-xs text-zinc-400">🔒 Dane chronione zgodnie z RODO</div>
+      {showPrivacy && <PrivacyPolicy onClose={() => setShowPrivacy(false)}/>}
       </div>
     </div>
   );
