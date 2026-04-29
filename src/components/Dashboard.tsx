@@ -43,14 +43,18 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const sw = startOfWeek(), sm = startOfMonth(), sy = startOfYear();
   // Count companies without tag
   const noTag = visible.filter(c => !c.tag || c.tag.trim() === '').length;
-  // Monthly/yearly revenue from policies
+  // Składka po data_od — stare polisy z 2025 nie wchodzą do statystyk 2026
   const monthlyRevenue = visible.reduce((sum, c) =>
-    sum + c.policies.filter(p => p.status === 'aktywna' && p.skladka && new Date(p.createdAt) >= sm)
-      .reduce((s, p) => s + (p.skladka ?? 0), 0), 0);
+    sum + c.policies
+      .filter(p => p.status === 'aktywna' && p.skladka && p.dataOd &&
+        new Date(p.dataOd) >= sm && new Date(p.dataOd).getFullYear() === sm.getFullYear())
+      .reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0), 0);
   const yearlyRevenue = visible.reduce((sum, c) =>
-    sum + c.policies.filter(p => p.status === 'aktywna' && p.skladka && new Date(p.createdAt) >= sy)
-      .reduce((s, p) => s + (p.skladka ?? 0), 0), 0);
-  // New salons this week (by created_at on company — approximate by first policy or assume recent imports)
+    sum + c.policies
+      .filter(p => p.status === 'aktywna' && p.skladka && p.dataOd &&
+        new Date(p.dataOd) >= sy)
+      .reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0), 0);
+  // Nowe salony = polisy dodane w tym tygodniu
   const newSalonsWeek = visible.filter(c => c.policies.some(p => new Date(p.createdAt) >= sw)).length;
 
   // ── Filters ───────────────────────────────────────────────────────────────

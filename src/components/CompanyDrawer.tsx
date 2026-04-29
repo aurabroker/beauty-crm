@@ -277,12 +277,24 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                     </div>
                     <div>
                       <Lbl>Suma ubezpieczenia</Lbl>
-                      <div className="flex">
-                        <Input value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
-                          placeholder="np. 500000" type="number"
-                          className="flex-1 h-9 text-sm rounded-none border-zinc-200 border-r-0 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                        <span className="h-9 px-3 flex items-center text-sm font-medium bg-zinc-100 border border-zinc-200 text-zinc-600 select-none">PLN</span>
-                      </div>
+                      {policyForm.rodzaj === 'Ubezpieczenie OC' ? (
+                        <div className="flex gap-2">
+                          {['100 000','200 000','300 000'].map(v => (
+                            <button key={v} type="button"
+                              onClick={() => setPolicyForm(p => ({...p, sumaUbezpieczenia: v}))}
+                              className={`flex-1 h-9 text-sm border-2 font-bold transition-colors ${policyForm.sumaUbezpieczenia===v ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-700 hover:border-zinc-900'}`}>
+                              {v} zł
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="flex">
+                          <Input value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
+                            placeholder="np. 500000" type="number"
+                            className="flex-1 h-9 text-sm rounded-none border-zinc-200 border-r-0 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+                          <span className="h-9 px-3 flex items-center text-sm font-medium bg-zinc-100 border border-zinc-200 text-zinc-600 select-none">PLN</span>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <Lbl>Składka</Lbl>
@@ -324,6 +336,35 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                         rows={2} className="text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 resize-none"/>
                     </div>
                   </div>
+                  {/* Ochrona prawna — tylko dla OC */}
+                  {policyForm.rodzaj === 'Ubezpieczenie OC' && (
+                    <div className="mb-3">
+                      <label className="flex items-center gap-3 p-3 border-2 cursor-pointer transition-colors hover:border-zinc-900 border-zinc-200 bg-zinc-50">
+                        <input type="checkbox" checked={policyForm.ochronaPrawna}
+                          onChange={e => setPolicyForm(p => ({...p, ochronaPrawna: e.target.checked}))}
+                          className="w-5 h-5 accent-emerald-600 flex-shrink-0"/>
+                        <div className="flex-1">
+                          <div className="text-sm font-bold text-zinc-900">☑ Ochrona prawna — 100 000 zł</div>
+                          <div className="text-xs text-zinc-500 mt-0.5">Składka roczna: <strong className="text-zinc-700">92 zł</strong> — doliczana do sumy składki</div>
+                        </div>
+                        {policyForm.ochronaPrawna && <span className="text-sm font-bold bg-emerald-100 text-emerald-700 px-2 py-1">+ 92 zł</span>}
+                      </label>
+                    </div>
+                  )}
+                  {/* Łączna składka preview */}
+                  {(Number(policyForm.skladka) > 0 || policyForm.ochronaPrawna) && (
+                    <div className="mb-3 px-4 py-3 bg-emerald-50 border-2 border-emerald-300 text-sm text-emerald-900 font-medium">
+                      💰 Łączna składka:{' '}
+                      <strong className="text-lg">
+                        {(Number(policyForm.skladka||0) + (policyForm.ochronaPrawna ? 92 : 0)).toLocaleString('pl-PL')} zł
+                      </strong>
+                      {policyForm.ochronaPrawna && Number(policyForm.skladka) > 0 && (
+                        <span className="text-xs text-emerald-600 ml-2 font-normal">
+                          ({Number(policyForm.skladka).toLocaleString('pl-PL')} polisa + 92 ochrona prawna)
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {!editingPolicyId && reminderPreview && (
                     <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 text-xs text-amber-800">
                       📅 Przypomnienie do kalendarza: <strong>{fmtDate(reminderPreview)}</strong> (45 dni przed końcem)
