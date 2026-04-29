@@ -23,7 +23,7 @@ function startOfMonth() { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0
 function startOfYear()  { const d = new Date(); d.setMonth(0,1); d.setHours(0,0,0,0); return d; }
 
 export function Dashboard({ onSelectCompany }: DashboardProps) {
-  const { companies, stages, addCompany, deleteCompany, importCompanies, currentUser, updateCompany } = useCRMStore();
+  const { companies, stages, deleteCompany, importCompanies, currentUser, updateCompany } = useCRMStore();
   const [search, setSearch]             = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterTag, setFilterTag]       = useState('all');
@@ -32,6 +32,8 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const [sortDir, setSortDir]           = useState<'asc'|'desc'>('asc');
   const [showAdd, setShowAdd]           = useState(false);
   const [newCo, setNewCo]               = useState<Record<string,string>>({});
+  const [newCoSource, setNewCoSource]   = useState<'własny'|'BeautyRazem'>('własny');
+  const [sendToGR, setSendToGR]         = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number|null>(null);
   const [importing, setImporting]       = useState(false);
   const [importResult, setImportResult] = useState<{imported:number;merged:number;errors:number}|null>(null);
@@ -111,8 +113,25 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
 
   const handleAdd = async () => {
     if (!newCo.company?.trim()) return;
-    await addCompany({ ...newCo, revenue: Number(newCo.revenue)||0 });
-    setNewCo({}); setShowAdd(false);
+    // Wyślij przez Edge Function (zapisze do CRM + opcjonalnie do GR)
+    await fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
+      body: JSON.stringify({
+        company:       newCo.company,
+        contact:       newCo.contact ?? '',
+        email:         newCo.email ?? '',
+        phone:         newCo.phone ?? '',
+        nip:           newCo.nip ?? '',
+        ubezpieczenie: newCo.ubezpieczenie ?? '',
+        tag:           newCoSource,
+        lead_source:   newCoSource,
+        send_to_gr:    sendToGR,
+      }),
+    }).catch(() => null);
+    // Odśwież dane
+    await useCRMStore.getState().loadData();
+    setNewCo({}); setNewCoSource('własny'); setSendToGR(false); setShowAdd(false);
   };
 
   return (
@@ -206,20 +225,31 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
               <button onClick={() => setShowAdd(false)} className="text-zinc-400 hover:text-white text-lg">✕</button>
             </div>
             <div className="p-5 grid grid-cols-2 gap-3">
-              {([['Nazwa firmy *','company'],['Kontakt','contact'],['Stanowisko','title'],['Telefon','phone'],['E-mail','email'],['NIP','nip'],['Miasto','city'],['Branża','industry'],['Pracownicy','employees'],['WWW','url']] as [string,string][]).map(([label,key]) => (
+              {/* Źródło — WŁASNY / BeautyRazem */}
+              <div className="col-span-2 grid grid-cols-2 gap-2 mb-1">
+                {(['własny','BeautyRazem'] as const).map(src => (
+                  <button key={src} type="button" onClick={() => setNewCoSource(src)}
+                    className={`py-2 text-sm font-bold border-2 transition-colors ${newCoSource===src ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-600 hover:border-zinc-900'}`}>
+                    {src === 'własny' ? '⭐ WŁASNY' : '🌐 BeautyRazem'}
+                  </button>
+                ))}
+              </div>
+              {([['Nazwa firmy *','company'],['Kontakt','contact'],['Telefon','phone'],['E-mail','email'],['NIP','nip'],['Rodzaj ubezpieczenia','ubezpieczenie'],['Miasto','city'],['Branża','industry']] as [string,string][]).map(([label,key]) => (
                 <div key={key}>
                   <div className="text-xs text-zinc-500 mb-1">{label}</div>
                   <Input value={newCo[key]??''} onChange={e => setNewCo(p=>({...p,[key]:e.target.value}))}
                     className="h-8 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
                 </div>
               ))}
+              {/* Wyślij do GR */}
               <div className="col-span-2">
-                <div className="text-xs text-zinc-500 mb-1">Tag zadaniowy</div>
-                <select value={newCo.tag??''} onChange={e=>setNewCo(p=>({...p,tag:e.target.value}))}
-                  className="w-full h-8 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
-                  <option value="">— bez tagu —</option>
-                  {TAGI_ZADANIOWE.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
+                <label className="flex items-center gap-3 p-3 border border-zinc-200 bg-zinc-50 cursor-pointer hover:bg-zinc-100 transition-colors">
+                  <input type="checkbox" checked={sendToGR} onChange={e => setSendToGR(e.target.checked)} className="w-4 h-4 accent-emerald-600"/>
+                  <div>
+                    <div className="text-sm font-semibold text-zinc-900">📧 Wyślij do GetResponse</div>
+                    <div className="text-xs text-zinc-500">Doda klienta do listy mailingowej GR2026</div>
+                  </div>
+                </label>
               </div>
             </div>
             <div className="px-5 pb-5 flex justify-end gap-2">

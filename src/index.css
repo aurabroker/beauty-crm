@@ -36,3 +36,18 @@ body {
   transition: border-color 0.15s;
 }
 .field-input:focus { border-color: #ec4899; }
+
+/* Fix transparent/unreadable selects everywhere */
+select {
+  background-color: #ffffff !important;
+  color: #18181b !important;
+}
+select option {
+  background-color: #ffffff;
+  color: #18181b;
+}
+
+/* Shadcn SelectContent */
+[data-radix-popper-content-wrapper] {
+  background-color: #ffffff !important;
+}
