@@ -392,6 +392,18 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                         </div>
                       )}
                     </div>
+                    {policyForm.rodzaj === 'Pakiety zdrowotne' && (
+                      <div className="col-span-2 mt-1">
+                        <Lbl>Dostawca</Lbl>
+                        <select value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
+                          className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900 font-medium">
+                          <option value="">— wybierz dostawcę —</option>
+                          {['ENEL-MED','LUX MED','SALTUS','WARTA','Medicover','Allianz'].map(d => (
+                            <option key={d} value={d}>{d}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     <div>
                       <Lbl>Składka</Lbl>
                       <div className="flex gap-1">

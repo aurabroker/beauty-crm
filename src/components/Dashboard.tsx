@@ -18,13 +18,12 @@ function startOfWeek() {
   const day = d.getDay(); d.setDate(d.getDate() - (day === 0 ? 6 : day - 1));
   return d;
 }
-function startOfMonth() { const d = new Date(); d.setDate(1); d.setHours(0,0,0,0); return d; }
-function startOfYear()  { const d = new Date(); d.setMonth(0,1); d.setHours(0,0,0,0); return d; }
 
 export function Dashboard({ onSelectCompany }: DashboardProps) {
   const { companies, stages, deleteCompany, importCompanies, currentUser, updateCompany } = useCRMStore();
   const [search, setSearch]             = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
+  const [filterRodzaj, setFilterRodzaj]   = useState('all');
   const [filterTag, setFilterTag]       = useState('all');
   const [filterSource, setFilterSource]  = useState('all');
   const [sortKey, setSortKey]           = useState<SortKey>('company');
@@ -55,20 +54,18 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   }, [visible, search]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
-  const sw = startOfWeek(), sm = startOfMonth(), sy = startOfYear();
+  const sw = startOfWeek();
   // Count companies without tag
   const noTag = visible.filter(c => !c.tag || c.tag.trim() === '').length;
-  // Składka po data_od — stare polisy z 2025 nie wchodzą do statystyk 2026
-  const monthlyRevenue = visible.reduce((sum, c) =>
-    sum + c.policies
-      .filter(p => p.status === 'aktywna' && p.skladka && p.dataOd &&
-        new Date(p.dataOd) >= sm && new Date(p.dataOd).getFullYear() === sm.getFullYear())
-      .reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0), 0);
-  const yearlyRevenue = visible.reduce((sum, c) =>
-    sum + c.policies
-      .filter(p => p.status === 'aktywna' && p.skladka && p.dataOd &&
-        new Date(p.dataOd) >= sy)
-      .reduce((s, p) => s + (p.skladka ?? 0) + (p.ochronaPrawna ? 92 : 0), 0), 0);
+  // Składka po data_od — porównanie stringów (bez problemów z timezone)
+  const nowDate = new Date();
+  const monthStr = `${nowDate.getFullYear()}-${String(nowDate.getMonth()+1).padStart(2,'0')}`;
+  const yearStr  = String(nowDate.getFullYear());
+  const calcRevenue = (policies: Company['policies'], prefix: string) =>
+    policies.filter(p => p.status==='aktywna' && p.skladka && p.dataOd?.startsWith(prefix))
+            .reduce((s,p) => s + (p.skladka??0) + (p.ochronaPrawna ? 92 : 0), 0);
+  const monthlyRevenue = visible.reduce((sum,c) => sum + calcRevenue(c.policies, monthStr), 0);
+  const yearlyRevenue  = visible.reduce((sum,c) => sum + calcRevenue(c.policies, yearStr),  0);
   // Nowe salony = polisy dodane w tym tygodniu
   const newSalonsWeek = visible.filter(c => c.policies.some(p => new Date(p.createdAt) >= sw)).length;
 
@@ -87,6 +84,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
       );
     }
     if (filterStatus !== 'all') r = r.filter(c => c.status === filterStatus);
+    if (filterRodzaj !== 'all')  r = r.filter(c => (c.tag ?? '').toUpperCase() === filterRodzaj.toUpperCase());
     if (filterTag === '__none') r = r.filter(c => !c.tag || c.tag.trim() === '');
     else if (filterTag !== 'all') r = r.filter(c => c.tag === filterTag);
     if (filterSource !== 'all') r = r.filter(c => (c.leadSource ?? '') === filterSource);
@@ -97,7 +95,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
       }
       return sortDir === 'asc' ? a.company.localeCompare(b.company) : b.company.localeCompare(a.company);
     });
-  }, [visible, search, filterStatus, filterTag, sortKey, sortDir]);
+  }, [visible, search, filterStatus, filterTag, filterSource, filterRodzaj, sortKey, sortDir]);
 
   const SI = ({k}:{k:SortKey}) => <span className="ml-1 text-[10px] opacity-40">{sortKey===k?(sortDir==='desc'?'↓':'↑'):'↕'}</span>;
   const toggleSort = (k:SortKey) => { if(sortKey===k) setSortDir(d=>d==='asc'?'desc':'asc'); else{setSortKey(k);setSortDir('asc');} };
@@ -217,13 +215,14 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
             </div>
           )}
         </div>
-        <Select value={filterStatus} onValueChange={setFilterStatus}>
-          <SelectTrigger className="w-36 h-9 text-sm rounded-none border-zinc-200 focus:ring-0"><SelectValue/></SelectTrigger>
-          <SelectContent className="rounded-none">
-            <SelectItem value="all">Wszystkie statusy</SelectItem>
-            {stages.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+        <div className="flex gap-1 border border-zinc-300 h-9">
+          {[['all','Wszyscy'],['WŁASNY','⭐ Własny'],['BEAUTYRAZEM','🌐 BeautyRazem']].map(([v,l])=>(
+            <button key={v} onClick={()=>setFilterRodzaj(v)}
+              className={`px-3 text-xs font-medium transition-colors ${filterRodzaj===v?'bg-zinc-900 text-white':'text-zinc-600 hover:bg-zinc-100'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
         <Select value={filterSource} onValueChange={setFilterSource}>
           <SelectTrigger className="w-44 h-9 text-sm rounded-none border-zinc-200 focus:ring-0"><SelectValue placeholder="Źródło"/></SelectTrigger>
           <SelectContent className="rounded-none">
@@ -337,6 +336,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
               <th className="text-left px-3 py-3 text-xs font-medium tracking-widest uppercase">NIP</th>
               <th className="text-left px-3 py-3 text-xs font-medium tracking-widest uppercase">Zainteresowania</th>
               <th className="text-left px-3 py-3 text-xs font-medium tracking-widest uppercase">Tag zadaniowy</th>
+              <th className="text-left px-3 py-3 text-xs font-medium tracking-widest uppercase">Rodzaj</th>
               <th className="text-left px-3 py-3 text-xs font-medium tracking-widest uppercase">Status</th>
               <th className="px-3 py-3 w-20"></th>
             </tr>
