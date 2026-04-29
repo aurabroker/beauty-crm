@@ -76,11 +76,12 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
       const q = search.toLowerCase().trim();
       r = r.filter(c =>
         c.company.toLowerCase().includes(q) ||
-        c.contact.toLowerCase().includes(q) ||
+        (c.contact ?? '').toLowerCase().includes(q) ||
         (c.nip ?? '').includes(q) ||
         (c.phone ?? '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
         (c.email ?? '').toLowerCase().includes(q) ||
-        (c.city ?? '').toLowerCase().includes(q)
+        (c.city ?? '').toLowerCase().includes(q) ||
+        (c.zainteresowania ?? '').toLowerCase().includes(q)
       );
     }
     if (filterStatus !== 'all') r = r.filter(c => c.status === filterStatus);
