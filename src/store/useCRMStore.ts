@@ -145,7 +145,16 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
 
   addHistory: (companyId, entry) => {
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, history: [entry, ...c.history] } : c) }));
-    supabase.from('crm_history').insert({ id: entry.id, company_id: companyId, type: entry.type, note: entry.note, author: entry.author }).then();
+    supabase.from('crm_history').insert({
+      id: entry.id,
+      company_id: companyId,
+      type: entry.type,
+      note: entry.note,
+      author: entry.author,
+      created_at: entry.date,
+    }).then(({ error }) => {
+      if (error) console.error('addHistory error:', error.message, error.code);
+    });
   },
 
   addReminder: (companyId, reminder) => {

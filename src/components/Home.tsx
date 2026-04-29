@@ -87,9 +87,16 @@ export function Home({ onSelectCompany }: HomeProps) {
     };
   }, [companies]);
 
-  const lastHistory = useMemo(() =>
-    companies.flatMap(c=>c.history.map(h=>({...h,company:c})))
-      .sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).slice(0,5)
+  // Ostatnie notatki (historia kontaktów)
+  const lastNotes = useMemo(() =>
+    companies.flatMap(c => c.history.map(h => ({ ...h, company: c })))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 6)
+  , [companies]);
+
+  // Ostatnio dodane firmy (po ID — najwyższe ID = najnowsze)
+  const recentlyAdded = useMemo(() =>
+    [...companies].sort((a, b) => b.id - a.id).slice(0, 6)
   , [companies]);
 
   // Expiring soon list
@@ -141,7 +148,7 @@ export function Home({ onSelectCompany }: HomeProps) {
       <div className="grid grid-cols-12 gap-3 mb-3">
 
         {/* Zadania 3 dni */}
-        <div className="col-span-4 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'320px'}}>
+        <div className="col-span-3 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'340px'}}>
           <div className="px-4 py-2.5 border-b border-zinc-100 flex items-center justify-between flex-shrink-0">
             <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">Zadania · 3 dni</div>
             <span className="text-xs bg-pink-100 text-pink-700 px-2 py-0.5 font-medium">{totalTasks}</span>
@@ -174,7 +181,7 @@ export function Home({ onSelectCompany }: HomeProps) {
         </div>
 
         {/* Wygasające polisy */}
-        <div className="col-span-4 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'320px'}}>
+        <div className="col-span-3 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'340px'}}>
           <div className="px-4 py-2.5 border-b border-zinc-100 flex-shrink-0">
             <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">🔔 Wygasają wkrótce</div>
           </div>
@@ -197,19 +204,45 @@ export function Home({ onSelectCompany }: HomeProps) {
           </div>
         </div>
 
-        {/* Ostatnie kontakty */}
-        <div className="col-span-4 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'320px'}}>
+        {/* Ostatnio dodane firmy */}
+        <div className="col-span-3 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'340px'}}>
           <div className="px-4 py-2.5 border-b border-zinc-100 flex-shrink-0">
-            <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">Ostatnie kontakty</div>
+            <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">Ostatnio dodane</div>
           </div>
           <div className="flex-1 overflow-y-auto divide-y divide-zinc-100">
-            {lastHistory.length===0
-              ? <div className="px-4 py-6 text-xs text-zinc-400 text-center">Brak historii</div>
-              : lastHistory.map(h=>(
+            {recentlyAdded.length===0
+              ? <div className="px-4 py-6 text-xs text-zinc-400 text-center">Brak firm</div>
+              : recentlyAdded.map(co=>(
+                <div key={co.id} className="px-4 py-2 cursor-pointer hover:bg-pink-50" onClick={()=>onSelectCompany(co)}>
+                  <div className="text-xs font-semibold text-zinc-800 truncate">{co.company}</div>
+                  <div className="text-[10px] text-zinc-400 truncate">{[co.contact, co.phone].filter(Boolean).join(' · ')}</div>
+                  <div className="text-[10px] mt-0.5">
+                    {co.leadSource==='formularz' && <span className="text-pink-500">📋 formularz</span>}
+                    {co.leadSource==='własny' && <span className="text-amber-500">⭐ własny</span>}
+                    {(!co.leadSource || co.leadSource==='import') && <span className="text-zinc-300">import</span>}
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+
+        {/* Ostatnie notatki */}
+        <div className="col-span-3 bg-white border border-zinc-200 flex flex-col" style={{maxHeight:'340px'}}>
+          <div className="px-4 py-2.5 border-b border-zinc-100 flex-shrink-0">
+            <div className="text-xs font-bold uppercase tracking-widest text-zinc-500">Ostatnie notatki</div>
+          </div>
+          <div className="flex-1 overflow-y-auto divide-y divide-zinc-100">
+            {lastNotes.length===0
+              ? <div className="px-4 py-6 text-xs text-zinc-400 text-center">Brak wpisów w historii</div>
+              : lastNotes.map(h=>(
                 <div key={h.id} className="px-4 py-2 cursor-pointer hover:bg-zinc-50" onClick={()=>onSelectCompany(h.company)}>
-                  <div className="text-xs font-medium text-zinc-800 truncate">{h.company.company}</div>
-                  <div className="text-xs text-zinc-400 truncate">{h.note.slice(0,55)}{h.note.length>55?'...':''}</div>
-                  <div className="text-[10px] text-zinc-300 mt-0.5">{fmtDT(h.date)}</div>
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-xs">{h.type==='telefon'?'📞':h.type==='email'?'✉️':h.type==='spotkanie'?'🤝':'📝'}</span>
+                    <span className="text-xs font-semibold text-zinc-800 truncate">{h.company.company}</span>
+                  </div>
+                  <div className="text-xs text-zinc-500 truncate">{h.note.slice(0,50)}{h.note.length>50?'...':''}</div>
+                  <div className="text-[10px] text-zinc-300 mt-0.5">{fmtDT(h.date)} · {h.author}</div>
                 </div>
               ))
             }
