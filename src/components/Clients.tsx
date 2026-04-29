@@ -23,7 +23,8 @@ function PolicyBadge({ dataDo }: { dataDo: string }) {
 type Filter = 'wszyscy' | 'aktywne' | 'wygasaja' | 'wygasle';
 
 export function Clients({ onSelectCompany }: ClientsProps) {
-  const { companies, currentUser } = useCRMStore();
+  const { companies, currentUser, updateCompany } = useCRMStore();
+  const [categoryPopup, setCategoryPopup] = useState<number|null>(null);
   const [search, setSearch]   = useState('');
   const [filter, setFilter]   = useState<Filter>('wszyscy');
 
@@ -125,7 +126,10 @@ export function Clients({ onSelectCompany }: ClientsProps) {
               )[0];
 
               return (
-                <tr key={c.id} onClick={() => onSelectCompany(c)}
+                <tr key={c.id}
+                onMouseEnter={() => { if (!c.tag || (!c.tag.includes('WŁASNY') && !c.tag.includes('BeautyRazem'))) setCategoryPopup(c.id); }}
+                onMouseLeave={() => setCategoryPopup(null)}
+onClick={() => onSelectCompany(c)}
                   className={`border-b border-zinc-100 cursor-pointer hover:bg-pink-50 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-zinc-50/40'}`}>
                   <td className="px-4 py-3">
                     <div className="font-semibold text-zinc-900">{c.company}</div>
@@ -160,6 +164,21 @@ export function Clients({ onSelectCompany }: ClientsProps) {
                       ? <span className="text-xs px-2 py-0.5 bg-zinc-100 text-zinc-500">Brak polisy</span>
                       : <span className="text-xs px-2 py-0.5 bg-zinc-100 text-zinc-500">—</span>}
                   </td>
+                  {categoryPopup === c.id && (
+                    <td colSpan={99} className="p-0" onClick={e => e.stopPropagation()}>
+                      <div className="absolute left-0 top-full z-50 bg-zinc-900 text-white shadow-xl p-3 border border-zinc-700 min-w-[220px]">
+                        <div className="text-xs font-bold uppercase tracking-widest mb-2 text-zinc-300">Przypisz kategorię *</div>
+                        <div className="flex gap-2">
+                          {(['WŁASNY','BeautyRazem'] as const).map(cat => (
+                            <button key={cat} onClick={() => { updateCompany(c.id, { tag: cat }); setCategoryPopup(null); }}
+                              className="flex-1 py-2 text-xs font-bold border-2 border-zinc-600 hover:border-white hover:bg-zinc-800 transition-colors">
+                              {cat === 'WŁASNY' ? '⭐ WŁASNY' : '🌐 BeautyRazem'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </td>
+                  )}
                 </tr>
               );
             })}

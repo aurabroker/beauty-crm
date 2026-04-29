@@ -172,7 +172,19 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
           {(['info','polisy','historia','przypomnienia'] as Tab[]).map(t => (
             <button key={t} onClick={() => setTab(t)}
               className={`flex-1 py-3 text-xs font-medium uppercase tracking-wider transition-colors ${tab===t ? 'bg-white text-zinc-900 border-b-2 border-zinc-900' : 'text-zinc-400 hover:text-zinc-700'}`}>
-              {t==='polisy' ? `🛡️ Polisy${company.policies.length ? ` (${company.policies.length})` : ''}`
+              {t==='polisy' ? (() => {
+                  const expiring = company.policies.some(p => {
+                    if (!p.dataDo || p.status !== 'aktywna') return false;
+                    const days = Math.ceil((new Date(p.dataDo).getTime() - Date.now()) / 86400000);
+                    return days >= 0 && days <= 45;
+                  });
+                  return (
+                    <span className={expiring ? 'animate-pulse text-red-600' : ''}>
+                      🛡️ Polisy{company.policies.length ? ` (${company.policies.length})` : ''}
+                      {expiring && ' ⚠'}
+                    </span>
+                  );
+                })()
                : t==='historia' ? `Historia${company.history.length ? ` (${company.history.length})` : ''}`
                : t==='przypomnienia' ? `Przypomnienia${activeReminders ? ` (${activeReminders})` : ''}`
                : 'Informacje'}
