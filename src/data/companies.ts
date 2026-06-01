@@ -60,6 +60,30 @@ export interface MienieSzkoda {
   data: string; przyczyna: string; kwota: number; odszkodowanie: number; ubezpieczyciel: string;
 }
 
+export interface MienieLokalizacja {
+  id: string;
+  wniosekId: string;
+  companyId: number | null;
+  nr: number;
+  nazwa: string;
+  adres: string; typLokalu: string; pietro: string; powierzchnia: number | null;
+  rokBudowy: string; rokRemontu: string; budynekWlasny: boolean;
+  materialScian: string; pokrycieDachu: string; stanTechniczny: string;
+  ogrzewanie: string; materialyPalne: boolean;
+  gasniceSzt: string; hydranty: boolean; dataPrzegladuGasnic: string; sap: boolean;
+  tryskacze: boolean; drogiEwakuacyjne: boolean; odlegloscPsp: string; zakazPalenia: boolean;
+  alarmTyp: string; ogrodzenie: boolean; agencjaOchrony: string; agencja24h: boolean;
+  cctv: boolean; kraty: boolean; rolety: boolean; zamkiAtestowane: boolean;
+  drzwiAtestowane: boolean; szybyAntywlamaniowe: boolean; sejfKlasa: string; systemAlarmowy: boolean;
+  sumaBudynek: number; sumaWyposazenie: number; sumaMaszyny: number;
+  sumaSrodkiObrotowe: number; sumaElektronikaIt: number; sumaSprzet: number;
+  sumaGotowkaLokal: number; sumaGotowkaTransport: number; sumaSzyby: number;
+  sumaMieniePracownikow: number; sumaLacznie: number;
+  sprzet: MienieSprzet[];
+  elektronika: MienieElektronika[];
+  createdAt: string;
+}
+
 export interface MienieWniosek {
   id: string;
   companyId: number | null;

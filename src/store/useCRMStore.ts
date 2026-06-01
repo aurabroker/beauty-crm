@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy, MienieWniosek } from '../data/companies';
+import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy, MienieWniosek, MienieLokalizacja } from '../data/companies';
 import { DEFAULT_STAGES } from '../data/companies';
 
 function calcReminderDate(dataDo: string): string {
@@ -60,6 +60,7 @@ interface CRMState {
   currentUser: CRMUser | null;
   loading: boolean;
   mienieWnioski: MienieWniosek[];
+  mienieLokalizacje: MienieLokalizacja[];
   mienieLoading: boolean;
   loadData: () => Promise<void>;
   setCurrentUser: (user: CRMUser) => void;
@@ -87,7 +88,7 @@ interface CRMState {
 
 export const useCRMStore = create<CRMState>()((set, get) => ({
   companies: [], users: [], stages: DEFAULT_STAGES,
-  currentUser: null, loading: true, mienieWnioski: [], mienieLoading: false,
+  currentUser: null, loading: true, mienieWnioski: [], mienieLokalizacje: [], mienieLoading: false,
 
   setCurrentUser: (user) => { localStorage.setItem('crm-user-id', user.id); set({ currentUser: user }); },
 
@@ -274,9 +275,48 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
 
   loadMienieWnioski: async () => {
     set({ mienieLoading: true });
-    const { data, error } = await supabase.from('mienie_wnioski').select('*').order('created_at', { ascending: false });
+    const [{ data, error }, { data: lokData }] = await Promise.all([
+      supabase.from('mienie_wnioski').select('*').order('created_at', { ascending: false }),
+      supabase.from('mienie_lokalizacje').select('*').order('nr'),
+    ]);
+    const lokalizacje: MienieLokalizacja[] = (lokData ?? []).map(r => ({
+      id: r.id, wniosekId: r.wniosek_id, companyId: r.company_id, nr: r.nr,
+      nazwa: r.nazwa ?? 'Lokalizacja 1', adres: r.adres ?? '',
+      typLokalu: r.typ_lokalu ?? '', pietro: r.pietro ?? '',
+      powierzchnia: r.powierzchnia ? Number(r.powierzchnia) : null,
+      rokBudowy: r.rok_budowy ?? '', rokRemontu: r.rok_remontu ?? '',
+      budynekWlasny: r.budynek_wlasny ?? false, materialScian: r.material_scian ?? '',
+      pokrycieDachu: r.pokrycie_dachu ?? '', stanTechniczny: r.stan_techniczny ?? '',
+      ogrzewanie: r.ogrzewanie ?? '', materialyPalne: r.materialy_palne ?? false,
+      gasniceSzt: r.gasnice_szt ?? '', hydranty: r.hydranty ?? false,
+      dataPrzegladuGasnic: r.data_przegladu_gasnic ?? '', sap: r.sap ?? false,
+      tryskacze: r.tryskacze ?? false, drogiEwakuacyjne: r.drogi_ewakuacyjne ?? false,
+      odlegloscPsp: r.odleglosc_psp ?? '', zakazPalenia: r.zakaz_palenia ?? false,
+      alarmTyp: r.alarm_typ ?? '', ogrodzenie: r.ogrodzenie ?? false,
+      agencjaOchrony: r.agencja_ochrony ?? '', agencja24h: r.agencja_24h ?? false,
+      cctv: r.cctv ?? false, kraty: r.kraty ?? false, rolety: r.rolety ?? false,
+      zamkiAtestowane: r.zamki_atestowane ?? false, drzwiAtestowane: r.drzwi_atestowane ?? false,
+      szybyAntywlamaniowe: r.szyby_antywlamaniowe ?? false, sejfKlasa: r.sejf_klasa ?? '',
+      systemAlarmowy: r.system_alarmowy ?? false,
+      sumaBudynek: Number(r.suma_budynek ?? 0), sumaWyposazenie: Number(r.suma_wyposazenie ?? 0),
+      sumaMaszyny: Number(r.suma_maszyny ?? 0), sumaSrodkiObrotowe: Number(r.suma_srodki_obrotowe ?? 0),
+      sumaElektronikaIt: Number(r.suma_elektronika_it ?? 0), sumaSprzet: Number(r.suma_sprzet_medyczny ?? 0),
+      sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
+      sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
+      sumaLacznie: Number(r.suma_lacznie ?? 0),
+      sprzet: r.sprzet_medyczny ?? [], elektronika: r.elektronika_eei ?? [],
+      createdAt: r.created_at,
+    }));
     if (!error && data) {
-      const wnioski: MienieWniosek[] = data.map(r => ({
+      const lokByWniosek = new Map<string, MienieLokalizacja[]>();
+      lokalizacje.forEach(l => {
+        if (!lokByWniosek.has(l.wniosekId)) lokByWniosek.set(l.wniosekId, []);
+        lokByWniosek.get(l.wniosekId)!.push(l);
+      });
+      const wnioski: MienieWniosek[] = data.map(r => {
+        const loks = lokByWniosek.get(r.id) ?? [];
+        const sumaLacznie = loks.length > 0 ? loks.reduce((s, l) => s + l.sumaLacznie, 0) : Number(r.suma_lacznie ?? 0);
+        return ({
         id: r.id, companyId: r.company_id, formToken: r.form_token,
         nazwaFirmy: r.nazwa_firmy ?? '', nip: r.nip ?? '', regon: r.regon ?? '', krs: r.krs ?? '',
         adresSiedziby: r.adres_siedziby ?? '', formaPrawna: r.forma_prawna ?? '', numerPkd: r.numer_pkd ?? '',
@@ -306,16 +346,17 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
         sumaElektronikaIt: Number(r.suma_elektronika_it ?? 0), sumaSprzet: Number(r.suma_sprzet_medyczny ?? 0),
         sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
         sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
-        sumaLacznie: Number(r.suma_lacznie ?? 0),
+        sumaLacznie,
         brakSzkod: r.brak_szkod ?? true, szkody: r.szkody ?? [],
         posiadaPolise: r.posiada_polise ?? false, towarzystwoObecne: r.towarzystwo_obecne ?? '',
         nrPolisyObecny: r.nr_polisy_obecny ?? '', waznoscDo: r.waznosc_do ?? '',
         rocznaSlkadkaObecna: r.roczna_skladka_obecna ? Number(r.roczna_skladka_obecna) : null,
         uwagi: r.uwagi ?? '', zgodaPrawdziwosc: r.zgoda_prawdziwosc ?? false, zgodaRodo: r.zgoda_rodo ?? false,
-        sprzet: r.sprzet_medyczny ?? [], elektronika: r.elektronika_eei ?? [],
+        sprzet: loks[0]?.sprzet ?? r.sprzet_medyczny ?? [],
+        elektronika: loks[0]?.elektronika ?? r.elektronika_eei ?? [],
         createdAt: r.created_at, updatedAt: r.updated_at,
       }));
-      set({ mienieWnioski: wnioski, mienieLoading: false });
+      set({ mienieWnioski: wnioski, mienieLokalizacje: lokalizacje, mienieLoading: false });
     } else {
       set({ mienieLoading: false });
     }
