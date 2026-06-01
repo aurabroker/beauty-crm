@@ -25,8 +25,7 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterRodzaj, setFilterRodzaj]   = useState('all');
   const [filterTag, setFilterTag]       = useState('all');
-  const [filterSource, setFilterSource]  = useState('all');
-  const [sortKey, setSortKey]           = useState<SortKey>('company');
+  const [filterSource, setFilterSource]  = useState('all');  const [sortKey, setSortKey]           = useState<SortKey>('company');
   const [sortDir, setSortDir]           = useState<'asc'|'desc'>('asc');
   const [showAdd, setShowAdd]           = useState(false);
   const [newCo, setNewCo]               = useState<Record<string,string>>({});
@@ -34,24 +33,11 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const [sendToGR, setSendToGR]         = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<number|null>(null);
   const [importing, setImporting]       = useState(false);
-  const [showSuggestions, setShowSuggestions] = useState(false);
   const [importResult, setImportResult] = useState<{imported:number;merged:number;errors:number}|null>(null);
   const csvRef = useRef<HTMLInputElement>(null);
   const isAdmin = currentUser?.role === 'admin';
 
-
   const visible = isAdmin ? companies : companies.filter(c => !c.assignedTo || c.assignedTo === currentUser?.name);
-
-  const searchSuggestions = useMemo(() => {
-    if (!search.trim() || search.trim().length < 2) return [];
-    const q = search.toLowerCase().trim();
-    return visible.filter((co: Company) =>
-      co.company.toLowerCase().includes(q) ||
-      (co.nip ?? '').includes(q) ||
-      (co.phone ?? '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
-      (co.contact ?? '').toLowerCase().includes(q)
-    ).slice(0, 8);
-  }, [visible, search]);
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   const sw = startOfWeek();
@@ -189,32 +175,11 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
           <input
             placeholder="Szukaj: nazwa, NIP, telefon, email..."
             value={search}
-            onChange={e => { setSearch(e.target.value); setShowSuggestions(true); }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onChange={e => setSearch(e.target.value)}
             className="w-80 h-9 border border-zinc-300 px-3 pl-8 text-sm focus:outline-none focus:border-zinc-900 bg-white"
           />
           <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">🔍</span>
-          {search && <button type="button" onClick={() => { setSearch(''); setShowSuggestions(false); }} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 text-xs">✕</button>}
-          {showSuggestions && searchSuggestions.length > 0 && (
-            <div className="absolute z-50 top-full left-0 w-96 bg-white border border-zinc-900 shadow-xl mt-px">
-              {searchSuggestions.map((co: Company) => (
-                <button key={co.id} type="button"
-                  onMouseDown={() => { setSearch(co.company); setShowSuggestions(false); onSelectCompany(co); }}
-                  className="w-full text-left px-3 py-2.5 hover:bg-pink-50 border-b border-zinc-100 last:border-0 flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <div className="text-sm font-semibold text-zinc-900 truncate">{co.company}</div>
-                    <div className="text-xs text-zinc-400 truncate">
-                      {[co.contact, co.phone, co.nip ? 'NIP: '+co.nip : ''].filter(Boolean).join(' · ')}
-                    </div>
-                  </div>
-                  <span className={`text-[10px] px-2 py-0.5 font-medium flex-shrink-0 ${co.status==='zamkniety'?'bg-emerald-100 text-emerald-700':co.status==='kontakt'?'bg-pink-100 text-pink-700':'bg-gray-100 text-gray-600'}`}>
-                    {stages.find(s=>s.key===co.status)?.label ?? co.status}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
+          {search && <button type="button" onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 text-xs">✕</button>}
         </div>
         <div className="flex gap-1 border border-zinc-300 h-9">
           {[['all','Wszyscy'],['WŁASNY','⭐ Własny'],['BEAUTYRAZEM','🌐 BeautyRazem']].map(([v,l])=>(
