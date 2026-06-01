@@ -210,6 +210,8 @@ function WniosekDrawer({ wniosek, company, onClose }: { wniosek: MienieWniosek; 
   );
 }
 
+const DEMO_COMPANY_ID = 1301;
+
 export function Mienie({ onSelectCompany }: { onSelectCompany: (c: Company) => void }) {
   const { companies, mienieWnioski, mienieLoading, loadMienieWnioski, generateFormToken, resetFormToken } = useCRMStore();
   const [search, setSearch] = useState('');
@@ -217,6 +219,8 @@ export function Mienie({ onSelectCompany }: { onSelectCompany: (c: Company) => v
   const [selectedWniosek, setSelectedWniosek] = useState<MienieWniosek | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
   const [generating, setGenerating] = useState<number | null>(null);
+  const [demoGenerating, setDemoGenerating] = useState(false);
+  const [demoCopied, setDemoCopied] = useState(false);
 
   useEffect(() => { loadMienieWnioski(); }, []);
 
@@ -257,8 +261,48 @@ export function Mienie({ onSelectCompany }: { onSelectCompany: (c: Company) => v
     setGenerating(null);
   };
 
+  const demoCompany = companies.find(c => c.id === DEMO_COMPANY_ID);
+  const handleDemoOpen = async () => {
+    setDemoGenerating(true);
+    const token = demoCompany?.formToken
+      ? (await resetFormToken(DEMO_COMPANY_ID), demoCompany.formToken)
+      : await generateFormToken(DEMO_COMPANY_ID);
+    setDemoGenerating(false);
+    const url = `${window.location.origin}/mienie-formularz.html?token=${token || demoCompany?.formToken}`;
+    window.open(url, '_blank');
+  };
+  const handleDemoCopy = async () => {
+    if (!demoCompany?.formToken) return;
+    await navigator.clipboard.writeText(`${window.location.origin}/mienie-formularz.html?token=${demoCompany.formToken}`);
+    setDemoCopied(true);
+    setTimeout(() => setDemoCopied(false), 2000);
+  };
+
   return (
     <div className="h-full flex flex-col gap-4 overflow-hidden">
+      {/* DEMO */}
+      <div className="flex-shrink-0 bg-amber-50 border border-amber-200 rounded p-3 flex items-center gap-4">
+        <div className="text-amber-700 font-bold text-sm">🧪 DEMO</div>
+        <div className="text-amber-700 text-xs flex-1">
+          Otwórz pusty formularz testowy — wypełnij dane i sprawdź jak działa wniosek po stronie klienta.
+          {demoCompany?.formToken && (
+            <span className="ml-1 text-amber-500">Token: <code className="font-mono">{demoCompany.formToken.slice(0, 18)}…</code></span>
+          )}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={handleDemoOpen} disabled={demoGenerating}
+            className="text-xs px-4 py-1.5 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors font-medium">
+            {demoGenerating ? 'Generuję…' : '↻ Odśwież i otwórz'}
+          </button>
+          {demoCompany?.formToken && (
+            <button onClick={handleDemoCopy}
+              className={`text-xs px-3 py-1.5 rounded border transition-colors ${demoCopied ? 'border-emerald-400 text-emerald-700 bg-emerald-50' : 'border-amber-300 text-amber-700 hover:bg-amber-100'}`}>
+              {demoCopied ? '✓ Skopiowano' : 'Kopiuj link'}
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* KPI */}
       <div className="grid grid-cols-4 gap-3 flex-shrink-0">
         {[
