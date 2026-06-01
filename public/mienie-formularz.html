@@ -6,7 +6,8 @@
 
   SQL (już zastosowany w projekcie dhuvykwecsxgchzxufxw):
   -- Tabela mienie_wnioski z pełnym schematem (9 sekcji + sprzęt + elektronika)
-  -- RLS: INSERT/SELECT/UPDATE dla anon
+  -- Tabela mienie_lokalizacje z danymi per lokalizacja
+  -- RLS: INSERT/SELECT/UPDATE/DELETE dla anon
 -->
 <html lang="pl">
 <head>
@@ -51,8 +52,10 @@
     .btn-primary:disabled { background:#9ca3af; cursor:not-allowed; }
     .btn-secondary { background:white; color:#374151; padding:.5rem 1rem; border-radius:.375rem; font-size:.875rem; font-weight:500; cursor:pointer; transition:all .15s; border:1px solid #d1d5db; }
     .btn-secondary:hover { border-color:#6b7280; }
-    .tab-btn { padding:.5rem 1.25rem; font-size:.875rem; font-weight:500; border-bottom: 2px solid transparent; cursor:pointer; color:#6b7280; transition:all .15s; background:none; border-top:none; border-left:none; border-right:none; }
-    .tab-btn.active { border-bottom-color:#0d9488; color:#0d9488; }
+    .loc-block { border: 1px solid #a7f3d0; border-radius: 1rem; padding: 1.5rem; margin-bottom: 1.5rem; background: #f9fffe; }
+    .loc-block-title { font-size: 0.875rem; font-weight: 700; color: #0f766e; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+    .loc-subsection { margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid #d1fae5; }
+    .loc-subsection-title { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: #6b7280; margin-bottom: 0.75rem; }
   </style>
 </head>
 <body class="bg-stone-50 min-h-screen">
@@ -116,437 +119,211 @@
       </div>
       <span class="text-xs text-stone-400 hidden sm:block">🔒 Bezpieczne połączenie</span>
     </div>
-    <!-- Tabs -->
-    <div class="max-w-3xl mx-auto px-4 flex gap-0 border-t border-stone-100 overflow-x-auto">
-      <button class="tab-btn active" onclick="switchTab('wniosek',this)">Wniosek</button>
-      <button class="tab-btn" onclick="switchTab('sprzet',this)">Sprzęt medyczny</button>
-      <button class="tab-btn" onclick="switchTab('elektronika',this)">Elektronika IT</button>
-    </div>
   </header>
 
   <div class="max-w-3xl mx-auto px-4 py-6">
 
-    <!-- TAB: WNIOSEK -->
-    <div id="tab-wniosek">
-
-      <!-- S1: Dane ubezpieczającego -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 1 — Dane ubezpieczającego / ubezpieczonego</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="sm:col-span-2">
-            <label class="required block text-sm font-medium text-stone-700 mb-1">Nazwa firmy / imię i nazwisko</label>
-            <input id="f-nazwa" class="form-input" type="text" placeholder="np. Beauty Studio sp. z o.o.">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">NIP</label>
-            <input id="f-nip" class="form-input" type="text" placeholder="000-000-00-00">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">REGON</label>
-            <input id="f-regon" class="form-input" type="text">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">KRS</label>
-            <input id="f-krs" class="form-input" type="text">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Forma prawna</label>
-            <select id="f-forma-prawna" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>Jednoosobowa działalność gospodarcza</option>
-              <option>Spółka cywilna</option>
-              <option>Spółka z o.o.</option>
-              <option>Spółka akcyjna</option>
-              <option>Spółka jawna</option>
-              <option>Spółka komandytowa</option>
-              <option>Inne</option>
-            </select>
-          </div>
-          <div class="sm:col-span-2">
-            <label class="required block text-sm font-medium text-stone-700 mb-1">Adres siedziby</label>
-            <input id="f-adres-siedziby" class="form-input" type="text" placeholder="ul. Przykładowa 1, 00-000 Warszawa">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Numer PKD</label>
-            <input id="f-pkd" class="form-input" type="text" placeholder="np. 96.02.Z">
-          </div>
-          <div>
-            <label class="required block text-sm font-medium text-stone-700 mb-1">E-mail kontaktowy</label>
-            <input id="f-email" class="form-input" type="email" placeholder="biuro@firma.pl">
-          </div>
-          <div>
-            <label class="required block text-sm font-medium text-stone-700 mb-1">Telefon</label>
-            <input id="f-telefon" class="form-input" type="tel" placeholder="+48 000 000 000">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Osoba do kontaktu</label>
-            <input id="f-osoba" class="form-input" type="text">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Stanowisko</label>
-            <input id="f-stanowisko" class="form-input" type="text">
-          </div>
+    <!-- S1: Dane ubezpieczającego -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 1 — Dane ubezpieczającego / ubezpieczonego</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="required block text-sm font-medium text-stone-700 mb-1">Nazwa firmy / imię i nazwisko</label>
+          <input id="f-nazwa" class="form-input" type="text" placeholder="np. Beauty Studio sp. z o.o.">
         </div>
-      </div>
-
-      <!-- S2: Lokalizacja -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 2 — Lokalizacja i charakterystyka budynku / lokalu</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="sm:col-span-2">
-            <label class="required block text-sm font-medium text-stone-700 mb-1">Adres lokalizacji ubezpieczenia</label>
-            <input id="f-adres-lok" class="form-input" type="text" placeholder="jeśli różny od siedziby">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Typ lokalu</label>
-            <select id="f-typ-lokalu" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>Lokal usługowy</option>
-              <option>Budynek wolnostojący</option>
-              <option>Lokal w centrum handlowym</option>
-              <option>Dom jednorodzinny</option>
-              <option>Inny</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Piętro / kondygnacja</label>
-            <input id="f-pietro" class="form-input" type="text" placeholder="np. 0, 1, -1">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Powierzchnia (m²)</label>
-            <input id="f-pow" class="form-input" type="number" min="0" placeholder="np. 120">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Rok budowy</label>
-            <input id="f-rok-budowy" class="form-input" type="text" placeholder="np. 1995">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Rok ostatniego remontu</label>
-            <input id="f-rok-remontu" class="form-input" type="text" placeholder="np. 2020">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Materiał ścian</label>
-            <select id="f-material" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>Cegła / mur</option>
-              <option>Żelbet / beton</option>
-              <option>Drewno / szkielet drewniany</option>
-              <option>Gazobeton / bloczki</option>
-              <option>Inne</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Pokrycie dachu</label>
-            <select id="f-dach" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>Papa / asfalt</option>
-              <option>Dachówka ceramiczna</option>
-              <option>Blacha trapezowa / panele</option>
-              <option>Strop żelbetowy (flat)</option>
-              <option>Inne</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Stan techniczny</label>
-            <select id="f-stan" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>Bardzo dobry</option>
-              <option>Dobry</option>
-              <option>Dostateczny</option>
-              <option>Wymaga remontu</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Ogrzewanie</label>
-            <select id="f-ogrzewanie" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>Centralne (sieciowe)</option>
-              <option>Gazowe</option>
-              <option>Elektryczne</option>
-              <option>Olejowe</option>
-              <option>Pompą ciepła</option>
-              <option>Inne</option>
-            </select>
-          </div>
-          <div class="flex items-center gap-4 sm:col-span-2">
-            <label class="cb-row flex-1">
-              <input type="checkbox" id="f-budynek-wlasny">
-              <span class="text-sm text-stone-700">Budynek własny (nie najemca)</span>
-            </label>
-            <label class="cb-row flex-1">
-              <input type="checkbox" id="f-mat-palne">
-              <span class="text-sm text-stone-700">Materiały palne w produkcji / procesie</span>
-            </label>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">NIP</label>
+          <input id="f-nip" class="form-input" type="text" placeholder="000-000-00-00">
         </div>
-      </div>
-
-      <!-- S3: Profil działalności -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 3 — Profil działalności</div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-          <div class="sm:col-span-3">
-            <label class="required block text-sm font-medium text-stone-700 mb-1">Rodzaj działalności</label>
-            <input id="f-dzialalnosc" class="form-input" type="text" placeholder="np. Salon kosmetyczny, klinika estetyczna">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Liczba pracowników</label>
-            <select id="f-pracownicy" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>1</option><option>2–5</option><option>6–10</option>
-              <option>11–25</option><option>26–50</option><option>51+</option>
-            </select>
-          </div>
-          <div class="sm:col-span-2">
-            <label class="block text-sm font-medium text-stone-700 mb-1">Szacunkowy roczny obrót</label>
-            <select id="f-obrot" class="form-input">
-              <option value="">— wybierz —</option>
-              <option>do 200 tys. PLN</option><option>200–500 tys. PLN</option>
-              <option>500 tys. – 1 mln PLN</option><option>1–3 mln PLN</option>
-              <option>powyżej 3 mln PLN</option>
-            </select>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">REGON</label>
+          <input id="f-regon" class="form-input" type="text">
         </div>
-      </div>
-
-      <!-- S4A: Zabezpieczenia ppoż -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 4A — Zabezpieczenia przeciwpożarowe</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Gaśnice (liczba sztuk)</label>
-            <input id="f-gasnice" class="form-input" type="text" placeholder="np. 2">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Data przeglądu gaśnic</label>
-            <input id="f-przeglad-gasnic" class="form-input" type="date">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Odległość od PSP (km)</label>
-            <input id="f-psp" class="form-input" type="text" placeholder="np. 3">
-          </div>
-          <div></div>
-          <label class="cb-row"><input type="checkbox" id="f-hydranty"><span class="text-sm text-stone-600">Hydranty wewnętrzne</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-sap"><span class="text-sm text-stone-600">System alarmowania pożaru (SAP)</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-tryskacze"><span class="text-sm text-stone-600">Tryskacze / automatyczny system gaśniczy</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-ewakuacja"><span class="text-sm text-stone-600">Oznakowane drogi ewakuacyjne</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-zakaz-palenia"><span class="text-sm text-stone-600">Zakaz palenia na obiekcie</span></label>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">KRS</label>
+          <input id="f-krs" class="form-input" type="text">
         </div>
-      </div>
-
-      <!-- S4B: Zabezpieczenia antykradzieżowe -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 4B — Zabezpieczenia antykradzieżowe</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Alarm — typ</label>
-            <select id="f-alarm" class="form-input">
-              <option value="brak">Brak</option>
-              <option>Lokalny (sygnał dźwiękowy)</option>
-              <option>Monitoring przez stację (SMS)</option>
-              <option>Monitoring przez agencję ochrony</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Agencja ochrony (nazwa)</label>
-            <input id="f-agencja" class="form-input" type="text" placeholder="np. Securitas, G4S">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Sejf / szafa stalowa — klasa</label>
-            <select id="f-sejf" class="form-input">
-              <option value="brak">Brak</option>
-              <option>I</option><option>II</option><option>III</option><option>IV+</option>
-            </select>
-          </div>
-          <div></div>
-          <label class="cb-row"><input type="checkbox" id="f-ogrodzenie"><span class="text-sm text-stone-600">Ogrodzenie terenu</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-agencja24h"><span class="text-sm text-stone-600">Agencja ochrony czynna 24h</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-cctv"><span class="text-sm text-stone-600">Monitoring wizyjny (CCTV)</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-kraty"><span class="text-sm text-stone-600">Kraty w oknach</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-rolety"><span class="text-sm text-stone-600">Rolety antywłamaniowe</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-zamki"><span class="text-sm text-stone-600">Zamki atestowane</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-drzwi"><span class="text-sm text-stone-600">Drzwi atestowane (antywłam.)</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-szyby-aw"><span class="text-sm text-stone-600">Szyby antywłamaniowe</span></label>
-          <label class="cb-row"><input type="checkbox" id="f-sys-alarm"><span class="text-sm text-stone-600">Komputerowy system alarmowy</span></label>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Forma prawna</label>
+          <select id="f-forma-prawna" class="form-input">
+            <option value="">— wybierz —</option>
+            <option>Jednoosobowa działalność gospodarcza</option>
+            <option>Spółka cywilna</option>
+            <option>Spółka z o.o.</option>
+            <option>Spółka akcyjna</option>
+            <option>Spółka jawna</option>
+            <option>Spółka komandytowa</option>
+            <option>Inne</option>
+          </select>
         </div>
-      </div>
-
-      <!-- S5: Zakres ubezpieczenia -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 5 — Zakres ubezpieczenia (zaznacz potrzebne)</div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          <!-- Mienie od ognia + rozwijalne składniki -->
-          <label class="cb-row">
-            <input type="checkbox" name="zakres" value="Mienie od ognia i zdarzeń losowych" id="zakres-mienie-ogien">
-            <span class="text-sm text-stone-600">Mienie od ognia i zdarzeń losowych</span>
-          </label>
-          <div id="mienie-ogien-sub" class="ml-7 mt-1 mb-2 pl-3 border-l-2 border-teal-200 flex flex-col gap-1" style="display:none">
-            <label class="cb-row"><input type="checkbox" name="zakres" value="Szyby i inne przedmioty"><span class="text-sm text-stone-500">Szyby i inne przedmioty od stłuczenia</span></label>
-            <label class="cb-row"><input type="checkbox" name="zakres" value="Dewastacja / wandalizm"><span class="text-sm text-stone-500">Dewastacja / wandalizm</span></label>
-            <label class="cb-row"><input type="checkbox" name="zakres" value="Przepięcia elektryczne"><span class="text-sm text-stone-500">Przepięcia elektryczne</span></label>
-          </div>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Kradzież z włamaniem i rabunek"><span class="text-sm text-stone-600">Kradzież z włamaniem i rabunek</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Sprzęt elektroniczny (EEI)"><span class="text-sm text-stone-600">Sprzęt elektroniczny (EEI)</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Sprzęt medyczny / aparatura"><span class="text-sm text-stone-600">Sprzęt medyczny / aparatura</span></label>
+        <div class="sm:col-span-2">
+          <label class="required block text-sm font-medium text-stone-700 mb-1">Adres siedziby</label>
+          <input id="f-adres-siedziby" class="form-input" type="text" placeholder="ul. Przykładowa 1, 00-000 Warszawa">
         </div>
-      </div>
-
-      <!-- S6: Sumy ubezpieczenia -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 6 — Sumy ubezpieczenia (wartości w PLN)</div>
-        <p class="text-xs text-stone-500 mb-4">Wpisz szacunkową wartość odtworzeniową (koszt zakupu nowego) każdej pozycji. Puste = 0.</p>
-        <div class="space-y-3">
-          <div id="suma-rows">
-            <!-- generated by JS -->
-          </div>
-          <div class="flex items-center justify-between pt-3 border-t-2 border-stone-200">
-            <span class="font-bold text-stone-800">ŁĄCZNA SUMA UBEZPIECZENIA</span>
-            <span id="suma-total" class="font-bold text-teal-700 text-lg">0 PLN</span>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Numer PKD</label>
+          <input id="f-pkd" class="form-input" type="text" placeholder="np. 96.02.Z">
         </div>
-      </div>
-
-      <!-- S7: Szkodowość -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 7 — Historia szkodowości (ostatnie 5 lat)</div>
-        <label class="cb-row mb-3">
-          <input type="checkbox" id="f-brak-szkod" checked onchange="toggleSzkody(this)">
-          <span class="text-sm font-medium text-stone-700">Brak szkód w ostatnich 5 latach</span>
-        </label>
-        <div id="szkody-table" class="hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm mb-2">
-              <thead class="text-xs text-stone-500 border-b border-stone-200">
-                <tr>
-                  <th class="text-left pb-1 pr-2">Data szkody</th>
-                  <th class="text-left pb-1 pr-2">Przyczyna</th>
-                  <th class="text-left pb-1 pr-2">Kwota szkody (PLN)</th>
-                  <th class="text-left pb-1 pr-2">Odszkodowanie (PLN)</th>
-                  <th class="text-left pb-1 pr-2">Ubezpieczyciel</th>
-                  <th class="pb-1"></th>
-                </tr>
-              </thead>
-              <tbody id="szkody-tbody"></tbody>
-            </table>
-          </div>
-          <button type="button" onclick="addSzkodaRow()" class="btn-secondary text-xs">+ Dodaj szkodę</button>
+        <div>
+          <label class="required block text-sm font-medium text-stone-700 mb-1">E-mail kontaktowy</label>
+          <input id="f-email" class="form-input" type="email" placeholder="biuro@firma.pl">
         </div>
-      </div>
-
-      <!-- S8: Dotychczasowe ubezpieczenie -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 8 — Dotychczasowe ubezpieczenie mienia</div>
-        <label class="cb-row mb-3">
-          <input type="checkbox" id="f-ma-polise" onchange="togglePolisa(this)">
-          <span class="text-sm font-medium text-stone-700">Posiada aktualną polisę na mienie</span>
-        </label>
-        <div id="polisa-details" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Towarzystwo ubezpieczeń</label>
-            <input id="f-tow" class="form-input" type="text" placeholder="np. PZU, Allianz, Warta">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Numer polisy</label>
-            <input id="f-nr-polisy" class="form-input" type="text">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Ważność polisy do</label>
-            <input id="f-waznosc" class="form-input" type="date">
-          </div>
-          <div>
-            <label class="block text-sm font-medium text-stone-700 mb-1">Roczna składka (PLN)</label>
-            <input id="f-skladka-obecna" class="form-input" type="number" min="0">
-          </div>
+        <div>
+          <label class="required block text-sm font-medium text-stone-700 mb-1">Telefon</label>
+          <input id="f-telefon" class="form-input" type="tel" placeholder="+48 000 000 000">
         </div>
-      </div>
-
-      <!-- S9: Uwagi -->
-      <div class="section-card">
-        <div class="section-title">Sekcja 9 — Uwagi oraz oświadczenia</div>
-        <div class="mb-4">
-          <label class="block text-sm font-medium text-stone-700 mb-1">Uwagi, opis działalności, pytania do agenta</label>
-          <textarea id="f-uwagi" class="form-input" rows="4" placeholder="Opisz specyfikę działalności, dodatkowe informacje ważne dla oceny ryzyka…"></textarea>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Osoba do kontaktu</label>
+          <input id="f-osoba" class="form-input" type="text">
         </div>
-        <div class="space-y-3 p-4 bg-stone-50 rounded-lg border border-stone-200">
-          <label class="cb-row items-start gap-3">
-            <input type="checkbox" id="f-zgoda-prawdziwosc" class="mt-0.5">
-            <span class="text-sm text-stone-600">
-              <strong>Oświadczam</strong>, że wszystkie informacje podane w niniejszym wniosku są zgodne z prawdą i odzwierciedlają rzeczywisty stan faktyczny.
-            </span>
-          </label>
-          <label class="cb-row items-start gap-3">
-            <input type="checkbox" id="f-zgoda-rodo" class="mt-0.5">
-            <span class="text-sm text-stone-600">
-              <strong>Wyrażam zgodę</strong> na przetwarzanie moich danych osobowych przez Aura Expert sp. z o.o. w celu przygotowania oferty ubezpieczenia, zgodnie z RODO.
-            </span>
-          </label>
-        </div>
-        <p id="validation-msg" class="hidden text-sm text-red-600 mt-3 p-3 bg-red-50 rounded-lg border border-red-200"></p>
-      </div>
-
-    </div><!-- /tab-wniosek -->
-
-    <!-- TAB: SPRZĘT MEDYCZNY -->
-    <div id="tab-sprzet" class="hidden">
-      <div class="section-card">
-        <div class="section-title">Sprzęt medyczny i estetyczny</div>
-        <p class="text-xs text-stone-500 mb-4">Podaj wszystkie urządzenia medyczne i estetyczne. Wartość = koszt zakupu nowego urządzenia tego samego modelu (wartość odtworzeniowa).</p>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-xs text-stone-500 border-b border-stone-200">
-              <tr>
-                <th class="text-left pb-2 pr-2 w-8">Lp.</th>
-                <th class="text-left pb-2 pr-2 min-w-[140px]">Nazwa urządzenia *</th>
-                <th class="text-left pb-2 pr-2 min-w-[100px]">Producent / Marka</th>
-                <th class="text-left pb-2 pr-2 min-w-[100px]">Model / Typ</th>
-                <th class="text-left pb-2 pr-2 w-24">Nr seryjny</th>
-                <th class="text-left pb-2 pr-2 w-20">Rok zakupu</th>
-                <th class="text-left pb-2 pr-2 w-28">Wartość (PLN) *</th>
-                <th class="text-left pb-2 pr-2 w-16">Cert. CE</th>
-                <th class="pb-2 w-8"></th>
-              </tr>
-            </thead>
-            <tbody id="sprzet-tbody"></tbody>
-          </table>
-        </div>
-        <div class="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
-          <button type="button" onclick="addSprzet()" class="btn-secondary text-xs">+ Dodaj urządzenie</button>
-          <div class="text-sm font-bold text-stone-700">
-            Suma: <span id="sprzet-total" class="text-teal-700">0 PLN</span>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Stanowisko</label>
+          <input id="f-stanowisko" class="form-input" type="text">
         </div>
       </div>
     </div>
 
-    <!-- TAB: ELEKTRONIKA -->
-    <div id="tab-elektronika" class="hidden">
-      <div class="section-card">
-        <div class="section-title">Sprzęt elektroniczny (EEI) — Komputery, kasy, IT</div>
-        <p class="text-xs text-stone-500 mb-4">Sprzęt IT, kasy fiskalne, terminale płatnicze, drukarki, skanery i inne urządzenia elektroniczne.</p>
-        <div class="overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="text-xs text-stone-500 border-b border-stone-200">
-              <tr>
-                <th class="text-left pb-2 pr-2 w-8">Lp.</th>
-                <th class="text-left pb-2 pr-2 min-w-[140px]">Nazwa urządzenia *</th>
-                <th class="text-left pb-2 pr-2 min-w-[100px]">Producent / Marka</th>
-                <th class="text-left pb-2 pr-2 min-w-[100px]">Model / Typ</th>
-                <th class="text-left pb-2 pr-2 w-20">Rok zakupu</th>
-                <th class="text-left pb-2 pr-2 w-28">Wartość (PLN) *</th>
-                <th class="text-left pb-2 pr-2 w-24">Nr seryjny</th>
-                <th class="pb-2 w-8"></th>
-              </tr>
-            </thead>
-            <tbody id="eei-tbody"></tbody>
-          </table>
+    <!-- S3: Profil działalności -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 3 — Profil działalności</div>
+      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <div class="sm:col-span-3">
+          <label class="required block text-sm font-medium text-stone-700 mb-1">Rodzaj działalności</label>
+          <input id="f-dzialalnosc" class="form-input" type="text" placeholder="np. Salon kosmetyczny, klinika estetyczna">
         </div>
-        <div class="flex items-center justify-between mt-4 pt-3 border-t border-stone-100">
-          <button type="button" onclick="addEei()" class="btn-secondary text-xs">+ Dodaj urządzenie</button>
-          <div class="text-sm font-bold text-stone-700">
-            Suma: <span id="eei-total" class="text-teal-700">0 PLN</span>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Liczba pracowników</label>
+          <select id="f-pracownicy" class="form-input">
+            <option value="">— wybierz —</option>
+            <option>1</option><option>2–5</option><option>6–10</option>
+            <option>11–25</option><option>26–50</option><option>51+</option>
+          </select>
+        </div>
+        <div class="sm:col-span-2">
+          <label class="block text-sm font-medium text-stone-700 mb-1">Szacunkowy roczny obrót</label>
+          <select id="f-obrot" class="form-input">
+            <option value="">— wybierz —</option>
+            <option>do 200 tys. PLN</option><option>200–500 tys. PLN</option>
+            <option>500 tys. – 1 mln PLN</option><option>1–3 mln PLN</option>
+            <option>powyżej 3 mln PLN</option>
+          </select>
         </div>
       </div>
+    </div>
+
+    <!-- LOKALIZACJE -->
+    <div id="lokalizacje-container"></div>
+    <div class="text-center my-2">
+      <button type="button" onclick="addLocation()" class="inline-flex items-center gap-2 px-5 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition-colors">
+        + Dodaj lokalizację
+      </button>
+    </div>
+
+    <!-- S5: Zakres ubezpieczenia -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 5 — Zakres ubezpieczenia (zaznacz potrzebne)</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
+        <!-- Mienie od ognia + rozwijalne składniki -->
+        <label class="cb-row">
+          <input type="checkbox" name="zakres" value="Mienie od ognia i zdarzeń losowych" id="zakres-mienie-ogien">
+          <span class="text-sm text-stone-600">Mienie od ognia i zdarzeń losowych</span>
+        </label>
+        <div id="mienie-ogien-sub" class="ml-7 mt-1 mb-2 pl-3 border-l-2 border-teal-200 flex flex-col gap-1" style="display:none">
+          <label class="cb-row"><input type="checkbox" name="zakres" value="Szyby i inne przedmioty"><span class="text-sm text-stone-500">Szyby i inne przedmioty od stłuczenia</span></label>
+          <label class="cb-row"><input type="checkbox" name="zakres" value="Dewastacja / wandalizm"><span class="text-sm text-stone-500">Dewastacja / wandalizm</span></label>
+          <label class="cb-row"><input type="checkbox" name="zakres" value="Przepięcia elektryczne"><span class="text-sm text-stone-500">Przepięcia elektryczne</span></label>
+        </div>
+        <label class="cb-row"><input type="checkbox" name="zakres" value="Kradzież z włamaniem i rabunek"><span class="text-sm text-stone-600">Kradzież z włamaniem i rabunek</span></label>
+        <label class="cb-row"><input type="checkbox" name="zakres" value="Sprzęt elektroniczny (EEI)"><span class="text-sm text-stone-600">Sprzęt elektroniczny (EEI)</span></label>
+        <label class="cb-row"><input type="checkbox" name="zakres" value="Sprzęt medyczny / aparatura"><span class="text-sm text-stone-600">Sprzęt medyczny / aparatura</span></label>
+      </div>
+    </div>
+
+    <!-- S6: Łączna suma (agregat wszystkich lokalizacji) -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 6 — Łączna suma ubezpieczenia (wszystkie lokalizacje)</div>
+      <div class="flex items-center justify-between pt-2">
+        <span class="font-bold text-stone-800">ŁĄCZNA SUMA UBEZPIECZENIA</span>
+        <span id="suma-total" class="font-bold text-teal-700 text-lg">0 PLN</span>
+      </div>
+    </div>
+
+    <!-- S7: Szkodowość -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 7 — Historia szkodowości (ostatnie 5 lat)</div>
+      <label class="cb-row mb-3">
+        <input type="checkbox" id="f-brak-szkod" checked onchange="toggleSzkody(this)">
+        <span class="text-sm font-medium text-stone-700">Brak szkód w ostatnich 5 latach</span>
+      </label>
+      <div id="szkody-table" class="hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm mb-2">
+            <thead class="text-xs text-stone-500 border-b border-stone-200">
+              <tr>
+                <th class="text-left pb-1 pr-2">Data szkody</th>
+                <th class="text-left pb-1 pr-2">Przyczyna</th>
+                <th class="text-left pb-1 pr-2">Kwota szkody (PLN)</th>
+                <th class="text-left pb-1 pr-2">Odszkodowanie (PLN)</th>
+                <th class="text-left pb-1 pr-2">Ubezpieczyciel</th>
+                <th class="pb-1"></th>
+              </tr>
+            </thead>
+            <tbody id="szkody-tbody"></tbody>
+          </table>
+        </div>
+        <button type="button" onclick="addSzkodaRow()" class="btn-secondary text-xs">+ Dodaj szkodę</button>
+      </div>
+    </div>
+
+    <!-- S8: Dotychczasowe ubezpieczenie -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 8 — Dotychczasowe ubezpieczenie mienia</div>
+      <label class="cb-row mb-3">
+        <input type="checkbox" id="f-ma-polise" onchange="togglePolisa(this)">
+        <span class="text-sm font-medium text-stone-700">Posiada aktualną polisę na mienie</span>
+      </label>
+      <div id="polisa-details" class="hidden grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Towarzystwo ubezpieczeń</label>
+          <input id="f-tow" class="form-input" type="text" placeholder="np. PZU, Allianz, Warta">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Numer polisy</label>
+          <input id="f-nr-polisy" class="form-input" type="text">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Ważność polisy do</label>
+          <input id="f-waznosc" class="form-input" type="date">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Roczna składka (PLN)</label>
+          <input id="f-skladka-obecna" class="form-input" type="number" min="0">
+        </div>
+      </div>
+    </div>
+
+    <!-- S9: Uwagi -->
+    <div class="section-card">
+      <div class="section-title">Sekcja 9 — Uwagi oraz oświadczenia</div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-stone-700 mb-1">Uwagi, opis działalności, pytania do agenta</label>
+        <textarea id="f-uwagi" class="form-input" rows="4" placeholder="Opisz specyfikę działalności, dodatkowe informacje ważne dla oceny ryzyka…"></textarea>
+      </div>
+      <div class="space-y-3 p-4 bg-stone-50 rounded-lg border border-stone-200">
+        <label class="cb-row items-start gap-3">
+          <input type="checkbox" id="f-zgoda-prawdziwosc" class="mt-0.5">
+          <span class="text-sm text-stone-600">
+            <strong>Oświadczam</strong>, że wszystkie informacje podane w niniejszym wniosku są zgodne z prawdą i odzwierciedlają rzeczywisty stan faktyczny.
+          </span>
+        </label>
+        <label class="cb-row items-start gap-3">
+          <input type="checkbox" id="f-zgoda-rodo" class="mt-0.5">
+          <span class="text-sm text-stone-600">
+            <strong>Wyrażam zgodę</strong> na przetwarzanie moich danych osobowych przez Aura Expert sp. z o.o. w celu przygotowania oferty ubezpieczenia, zgodnie z RODO.
+          </span>
+        </label>
+      </div>
+      <p id="validation-msg" class="hidden text-sm text-red-600 mt-3 p-3 bg-red-50 rounded-lg border border-red-200"></p>
     </div>
 
     <!-- SUBMIT -->
@@ -568,26 +345,432 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const HEADERS = { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
 
 let TOKEN = '', COMPANY_ID = null, EXISTING_ID = null;
+let LOC_IDX = 0;
 
-const SUMY_DEF = [
-  { id:'s-budynek',     label:'Budynek / nakłady adaptacyjne (najemcy)' },
-  { id:'s-wyposazenie', label:'Wyposażenie stałe (meble, zabudowa)' },
-  { id:'s-maszyny',     label:'Maszyny i urządzenia produkcyjne' },
-  { id:'s-obrotowe',    label:'Środki obrotowe (towary, kosmetyki, preparaty)' },
-  { id:'s-elektronika', label:'Sprzęt elektroniczny (IT, kasy fiskalne)' },
-  { id:'s-medyczny',    label:"Sprzęt medyczny / estetyczny (szczegóły w zakładce 'Sprzęt medyczny')" },
-  { id:'s-got-lokal',   label:'Gotówka w lokalu (max jednorazowo)' },
-  { id:'s-got-trans',   label:'Gotówka w transporcie (max jednorazowo)' },
-  { id:'s-szyby',       label:'Szyby i inne przedmioty od stłuczenia' },
-  { id:'s-pracownicy',  label:'Mienie pracowników' },
+const SUMY_KEYS = [
+  { key: 'budynek',        label: 'Budynek / nakłady adaptacyjne (najemcy)' },
+  { key: 'wyposazenie',    label: 'Wyposażenie stałe (meble, zabudowa)' },
+  { key: 'maszyny',        label: 'Maszyny i urządzenia produkcyjne' },
+  { key: 'obrotowe',       label: 'Środki obrotowe (towary, kosmetyki, preparaty)' },
+  { key: 'elektronika',    label: 'Sprzęt elektroniczny (IT, kasy fiskalne)' },
+  { key: 'sprzet',         label: 'Sprzęt medyczny / estetyczny' },
+  { key: 'gotowka-lokal',  label: 'Gotówka w lokalu (max jednorazowo)' },
+  { key: 'gotowka-trans',  label: 'Gotówka w transporcie (max jednorazowo)' },
+  { key: 'szyby',          label: 'Szyby i inne przedmioty od stłuczenia' },
+  { key: 'pracownicy',     label: 'Mienie pracowników' },
 ];
+
+// ===== LOCATION HELPERS =====
+function lVal(locEl, f) { return locEl.querySelector(`[data-f="${f}"]`)?.value || ''; }
+function lCheck(locEl, f) { return locEl.querySelector(`[data-f="${f}"]`)?.checked || false; }
+
+function addLocation(data = {}) {
+  LOC_IDX++;
+  const idx = LOC_IDX;
+  const container = document.getElementById('lokalizacje-container');
+
+  const block = document.createElement('div');
+  block.className = 'loc-block';
+  block.setAttribute('data-loc', idx);
+
+  block.innerHTML = `
+    <!-- Nagłówek lokalizacji -->
+    <div class="loc-block-title">
+      <span class="loc-num text-teal-700 font-bold">Lokalizacja ${container.querySelectorAll('.loc-block').length + 1}</span>
+      <input type="text" data-f="nazwa-lokalizacji" class="form-input loc-name-input" style="max-width:260px; font-size:0.85rem;" placeholder="np. Oddział Centrum" value="${esc(data.nazwa || '')}">
+      <button type="button" onclick="removeLoc(this)" class="ml-auto text-xs text-red-500 hover:text-red-700 border border-red-200 hover:border-red-400 rounded px-2 py-1 loc-remove-btn" style="display:none">Usuń</button>
+    </div>
+
+    <!-- Sekcja 2: Budynek -->
+    <div class="loc-subsection">
+      <div class="loc-subsection-title">Lokalizacja i charakterystyka budynku / lokalu</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div class="sm:col-span-2">
+          <label class="required block text-sm font-medium text-stone-700 mb-1">Adres lokalizacji ubezpieczenia</label>
+          <input data-f="adres" class="form-input loc-field" type="text" placeholder="jeśli różny od siedziby" value="${esc(data.adres || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Typ lokalu</label>
+          <select data-f="typ-lokalu" class="form-input loc-field">
+            <option value="">— wybierz —</option>
+            ${optSel(['Lokal usługowy','Budynek wolnostojący','Lokal w centrum handlowym','Dom jednorodzinny','Inny'], data.typ_lokalu)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Piętro / kondygnacja</label>
+          <input data-f="pietro" class="form-input loc-field" type="text" placeholder="np. 0, 1, -1" value="${esc(data.pietro || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Powierzchnia (m²)</label>
+          <input data-f="powierzchnia" class="form-input loc-field" type="number" min="0" placeholder="np. 120" value="${esc(data.powierzchnia || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Rok budowy</label>
+          <input data-f="rok-budowy" class="form-input loc-field" type="text" placeholder="np. 1995" value="${esc(data.rok_budowy || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Rok ostatniego remontu</label>
+          <input data-f="rok-remontu" class="form-input loc-field" type="text" placeholder="np. 2020" value="${esc(data.rok_remontu || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Materiał ścian</label>
+          <select data-f="material-scian" class="form-input loc-field">
+            <option value="">— wybierz —</option>
+            ${optSel(['Cegła / mur','Żelbet / beton','Drewno / szkielet drewniany','Gazobeton / bloczki','Inne'], data.material_scian)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Pokrycie dachu</label>
+          <select data-f="pokrycie-dachu" class="form-input loc-field">
+            <option value="">— wybierz —</option>
+            ${optSel(['Papa / asfalt','Dachówka ceramiczna','Blacha trapezowa / panele','Strop żelbetowy (flat)','Inne'], data.pokrycie_dachu)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Stan techniczny</label>
+          <select data-f="stan-techniczny" class="form-input loc-field">
+            <option value="">— wybierz —</option>
+            ${optSel(['Bardzo dobry','Dobry','Dostateczny','Wymaga remontu'], data.stan_techniczny)}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Ogrzewanie</label>
+          <select data-f="ogrzewanie" class="form-input loc-field">
+            <option value="">— wybierz —</option>
+            ${optSel(['Centralne (sieciowe)','Gazowe','Elektryczne','Olejowe','Pompą ciepła','Inne'], data.ogrzewanie)}
+          </select>
+        </div>
+        <div class="flex items-center gap-4 sm:col-span-2">
+          <label class="cb-row flex-1">
+            <input type="checkbox" data-f="budynek-wlasny" ${data.budynek_wlasny ? 'checked' : ''}>
+            <span class="text-sm text-stone-700">Budynek własny (nie najemca)</span>
+          </label>
+          <label class="cb-row flex-1">
+            <input type="checkbox" data-f="materialy-palne" ${data.materialy_palne ? 'checked' : ''}>
+            <span class="text-sm text-stone-700">Materiały palne w produkcji / procesie</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sekcja 4A: ppoż -->
+    <div class="loc-subsection">
+      <div class="loc-subsection-title">Sekcja 4A — Zabezpieczenia przeciwpożarowe</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Gaśnice (liczba sztuk)</label>
+          <input data-f="gasnice-szt" class="form-input loc-field" type="text" placeholder="np. 2" value="${esc(data.gasnice_szt || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Data przeglądu gaśnic</label>
+          <input data-f="data-przegladu-gasnic" class="form-input loc-field" type="date" value="${esc(data.data_przegladu_gasnic || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Odległość od PSP (km)</label>
+          <input data-f="odleglosc-psp" class="form-input loc-field" type="text" placeholder="np. 3" value="${esc(data.odleglosc_psp || '')}">
+        </div>
+        <div></div>
+        <label class="cb-row"><input type="checkbox" data-f="hydranty" ${data.hydranty ? 'checked' : ''}><span class="text-sm text-stone-600">Hydranty wewnętrzne</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="sap" ${data.sap ? 'checked' : ''}><span class="text-sm text-stone-600">System alarmowania pożaru (SAP)</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="tryskacze" ${data.tryskacze ? 'checked' : ''}><span class="text-sm text-stone-600">Tryskacze / automatyczny system gaśniczy</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="drogi-ewakuacyjne" ${data.drogi_ewakuacyjne ? 'checked' : ''}><span class="text-sm text-stone-600">Oznakowane drogi ewakuacyjne</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="zakaz-palenia" ${data.zakaz_palenia ? 'checked' : ''}><span class="text-sm text-stone-600">Zakaz palenia na obiekcie</span></label>
+      </div>
+    </div>
+
+    <!-- Sekcja 4B: antykradzieżowe -->
+    <div class="loc-subsection">
+      <div class="loc-subsection-title">Sekcja 4B — Zabezpieczenia antykradzieżowe</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Alarm — typ</label>
+          <select data-f="alarm-typ" class="form-input loc-field">
+            ${optSel(['brak','Lokalny (sygnał dźwiękowy)','Monitoring przez stację (SMS)','Monitoring przez agencję ochrony'], data.alarm_typ || 'brak')}
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Agencja ochrony (nazwa)</label>
+          <input data-f="agencja-ochrony" class="form-input loc-field" type="text" placeholder="np. Securitas, G4S" value="${esc(data.agencja_ochrony || '')}">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-stone-700 mb-1">Sejf / szafa stalowa — klasa</label>
+          <select data-f="sejf-klasa" class="form-input loc-field">
+            ${optSel(['brak','I','II','III','IV+'], data.sejf_klasa || 'brak')}
+          </select>
+        </div>
+        <div></div>
+        <label class="cb-row"><input type="checkbox" data-f="ogrodzenie" ${data.ogrodzenie ? 'checked' : ''}><span class="text-sm text-stone-600">Ogrodzenie terenu</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="agencja-24h" ${data.agencja_24h ? 'checked' : ''}><span class="text-sm text-stone-600">Agencja ochrony czynna 24h</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="cctv" ${data.cctv ? 'checked' : ''}><span class="text-sm text-stone-600">Monitoring wizyjny (CCTV)</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="kraty" ${data.kraty ? 'checked' : ''}><span class="text-sm text-stone-600">Kraty w oknach</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="rolety" ${data.rolety ? 'checked' : ''}><span class="text-sm text-stone-600">Rolety antywłamaniowe</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="zamki-atestowane" ${data.zamki_atestowane ? 'checked' : ''}><span class="text-sm text-stone-600">Zamki atestowane</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="drzwi-atestowane" ${data.drzwi_atestowane ? 'checked' : ''}><span class="text-sm text-stone-600">Drzwi atestowane (antywłam.)</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="szyby-antywlamaniowe" ${data.szyby_antywlamaniowe ? 'checked' : ''}><span class="text-sm text-stone-600">Szyby antywłamaniowe</span></label>
+        <label class="cb-row"><input type="checkbox" data-f="system-alarmowy" ${data.system_alarmowy ? 'checked' : ''}><span class="text-sm text-stone-600">Komputerowy system alarmowy</span></label>
+      </div>
+    </div>
+
+    <!-- Sumy per lokalizacja -->
+    <div class="loc-subsection">
+      <div class="loc-subsection-title">Sumy ubezpieczenia dla tej lokalizacji (PLN)</div>
+      <p class="text-xs text-stone-500 mb-3">Wpisz szacunkową wartość odtworzeniową (koszt zakupu nowego) każdej pozycji.</p>
+      <div class="space-y-2 loc-suma-rows" data-loc-ref="${idx}">
+        ${SUMY_KEYS.map(sk => `
+        <div class="flex flex-col sm:flex-row sm:items-center gap-2 py-2 border-b border-stone-100">
+          <div class="flex-1 text-sm text-stone-700">${sk.label}</div>
+          <div class="sm:w-44">
+            <input type="number" min="0" step="1000" placeholder="0"
+              data-suma-key="${sk.key}"
+              value="${esc((data['suma_' + sk.key.replace(/-/g,'_')] || ''))}"
+              oninput="recalcLocSuma(this)"
+              class="form-input text-right font-mono">
+          </div>
+        </div>`).join('')}
+      </div>
+      <div class="flex items-center justify-between pt-3 border-t-2 border-stone-200 mt-2">
+        <span class="font-semibold text-stone-800 text-sm">Suma lokalizacji</span>
+        <span class="loc-suma-display font-bold text-teal-700">0 PLN</span>
+      </div>
+    </div>
+
+    <!-- Sprzęt medyczny tej lokalizacji -->
+    <div class="loc-subsection">
+      <div class="loc-subsection-title">Sprzęt medyczny i estetyczny</div>
+      <p class="text-xs text-stone-500 mb-3">Podaj urządzenia medyczne i estetyczne w tej lokalizacji.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-xs text-stone-500 border-b border-stone-200">
+            <tr>
+              <th class="text-left pb-2 pr-2 w-8">Lp.</th>
+              <th class="text-left pb-2 pr-2 min-w-[130px]">Nazwa urządzenia</th>
+              <th class="text-left pb-2 pr-2 min-w-[90px]">Producent</th>
+              <th class="text-left pb-2 pr-2 min-w-[90px]">Model</th>
+              <th class="text-left pb-2 pr-2 w-20">Nr seryjny</th>
+              <th class="text-left pb-2 pr-2 w-16">Rok zakupu</th>
+              <th class="text-left pb-2 pr-2 w-28">Wartość (PLN)</th>
+              <th class="text-left pb-2 pr-2 w-14">Cert.CE</th>
+              <th class="pb-2 w-8"></th>
+            </tr>
+          </thead>
+          <tbody class="loc-sprzet-tbody"></tbody>
+        </table>
+      </div>
+      <button type="button" onclick="addLocSprzet(this)" class="btn-secondary text-xs mt-3">+ Dodaj wiersz</button>
+    </div>
+
+    <!-- Elektronika EEI tej lokalizacji -->
+    <div class="loc-subsection">
+      <div class="loc-subsection-title">Sprzęt elektroniczny (EEI) — Komputery, kasy, IT</div>
+      <p class="text-xs text-stone-500 mb-3">Sprzęt IT, kasy fiskalne, terminale płatnicze i inne urządzenia elektroniczne.</p>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead class="text-xs text-stone-500 border-b border-stone-200">
+            <tr>
+              <th class="text-left pb-2 pr-2 w-8">Lp.</th>
+              <th class="text-left pb-2 pr-2 min-w-[130px]">Nazwa urządzenia</th>
+              <th class="text-left pb-2 pr-2 min-w-[90px]">Producent</th>
+              <th class="text-left pb-2 pr-2 min-w-[90px]">Model</th>
+              <th class="text-left pb-2 pr-2 w-16">Rok zakupu</th>
+              <th class="text-left pb-2 pr-2 w-28">Wartość (PLN)</th>
+              <th class="text-left pb-2 pr-2 w-20">Nr seryjny</th>
+              <th class="pb-2 w-8"></th>
+            </tr>
+          </thead>
+          <tbody class="loc-eei-tbody"></tbody>
+        </table>
+      </div>
+      <button type="button" onclick="addLocEei(this)" class="btn-secondary text-xs mt-3">+ Dodaj wiersz</button>
+    </div>
+  `;
+
+  container.appendChild(block);
+
+  // Pre-fill sprzęt z danych
+  const sprzetData = tryParseJSON(data.sprzet_medyczny, []);
+  const eeiData = tryParseJSON(data.elektronika_eei, []);
+  const sprzetTbody = block.querySelector('.loc-sprzet-tbody');
+  const eeiTbody = block.querySelector('.loc-eei-tbody');
+  if (sprzetData.length) { sprzetData.forEach(r => addLocSprzetRow(sprzetTbody, r)); }
+  else { addLocSprzetRow(sprzetTbody); addLocSprzetRow(sprzetTbody); }
+  if (eeiData.length) { eeiData.forEach(r => addLocEeiRow(eeiTbody, r)); }
+  else { addLocEeiRow(eeiTbody); addLocEeiRow(eeiTbody); }
+
+  refreshLocNumbers();
+  recalcLocSumaBlock(block);
+  recalcTotal();
+}
+
+function removeLoc(btn) {
+  const container = document.getElementById('lokalizacje-container');
+  const blocks = container.querySelectorAll('.loc-block');
+  if (blocks.length <= 1) return;
+  btn.closest('.loc-block').remove();
+  refreshLocNumbers();
+  recalcTotal();
+}
+
+function refreshLocNumbers() {
+  const blocks = document.getElementById('lokalizacje-container').querySelectorAll('.loc-block');
+  blocks.forEach((b, i) => {
+    const numEl = b.querySelector('.loc-num');
+    if (numEl) numEl.textContent = `Lokalizacja ${i + 1}`;
+    const removeBtn = b.querySelector('.loc-remove-btn');
+    if (removeBtn) removeBtn.style.display = blocks.length > 1 ? '' : 'none';
+  });
+}
+
+// ===== LOCATION TABLE ROWS =====
+function addLocSprzet(btn) {
+  const tbody = btn.closest('.loc-subsection').querySelector('.loc-sprzet-tbody');
+  addLocSprzetRow(tbody);
+}
+function addLocSprzetRow(tbody, data = {}) {
+  const n = tbody.querySelectorAll('tr').length + 1;
+  const tr = document.createElement('tr');
+  tr.className = 'border-b border-stone-100 align-top';
+  tr.innerHTML = `
+    <td class="py-1 pr-2 text-xs text-stone-400 pt-2">${n}</td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.nazwa||'')}" placeholder="Nazwa urządzenia" class="form-input text-xs" style="min-width:120px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.producent||'')}" placeholder="Marka" class="form-input text-xs" style="min-width:80px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.model||'')}" placeholder="Model" class="form-input text-xs" style="min-width:80px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.nrSeryjny||'')}" class="form-input text-xs" style="min-width:70px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.rokZakupu||'')}" placeholder="2022" class="form-input text-xs" style="min-width:60px"></td>
+    <td class="py-1 pr-1"><input type="number" min="0" value="${esc(data.wartosc||'')}" placeholder="0" class="form-input text-xs text-right font-mono" style="min-width:90px"></td>
+    <td class="py-1 pr-1 pt-2"><label class="cb-row justify-center"><input type="checkbox" ${data.certCE !== false ? 'checked' : ''}></label></td>
+    <td class="py-1"><button type="button" onclick="this.closest('tr').remove()" class="text-stone-400 hover:text-red-500 text-lg px-1">×</button></td>`;
+  tbody.appendChild(tr);
+}
+
+function addLocEei(btn) {
+  const tbody = btn.closest('.loc-subsection').querySelector('.loc-eei-tbody');
+  addLocEeiRow(tbody);
+}
+function addLocEeiRow(tbody, data = {}) {
+  const n = tbody.querySelectorAll('tr').length + 1;
+  const tr = document.createElement('tr');
+  tr.className = 'border-b border-stone-100 align-top';
+  tr.innerHTML = `
+    <td class="py-1 pr-2 text-xs text-stone-400 pt-2">${n}</td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.nazwa||'')}" placeholder="Nazwa urządzenia" class="form-input text-xs" style="min-width:120px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.producent||'')}" placeholder="Marka" class="form-input text-xs" style="min-width:80px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.model||'')}" placeholder="Model" class="form-input text-xs" style="min-width:80px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.rokZakupu||'')}" placeholder="2022" class="form-input text-xs" style="min-width:60px"></td>
+    <td class="py-1 pr-1"><input type="number" min="0" value="${esc(data.wartosc||'')}" placeholder="0" class="form-input text-xs text-right font-mono" style="min-width:90px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.nrSeryjny||'')}" class="form-input text-xs" style="min-width:70px"></td>
+    <td class="py-1"><button type="button" onclick="this.closest('tr').remove()" class="text-stone-400 hover:text-red-500 text-lg px-1">×</button></td>`;
+  tbody.appendChild(tr);
+}
+
+// ===== SUMS =====
+function recalcLocSuma(inp) {
+  recalcLocSumaBlock(inp.closest('.loc-block'));
+  recalcTotal();
+}
+
+function recalcLocSumaBlock(block) {
+  const inputs = block.querySelectorAll('[data-suma-key]');
+  let total = 0;
+  inputs.forEach(i => { total += parseFloat(i.value) || 0; });
+  const disp = block.querySelector('.loc-suma-display');
+  if (disp) disp.textContent = fmtPLN(total);
+}
+
+function recalcTotal() {
+  const blocks = document.getElementById('lokalizacje-container').querySelectorAll('.loc-block');
+  let grand = 0;
+  blocks.forEach(b => {
+    b.querySelectorAll('[data-suma-key]').forEach(i => { grand += parseFloat(i.value) || 0; });
+  });
+  document.getElementById('suma-total').textContent = fmtPLN(grand);
+}
+
+// ===== COLLECT LOCATIONS =====
+function collectLocSprzet(block) {
+  return [...block.querySelectorAll('.loc-sprzet-tbody tr')].map((tr, i) => {
+    const inputs = tr.querySelectorAll('input');
+    const cb = tr.querySelector('input[type=checkbox]');
+    return {
+      lp: i+1, nazwa: inputs[1]?.value||'', producent: inputs[2]?.value||'',
+      model: inputs[3]?.value||'', nrSeryjny: inputs[4]?.value||'',
+      rokZakupu: inputs[5]?.value||'', wartosc: parseFloat(inputs[6]?.value)||0,
+      certCE: cb?.checked ?? true
+    };
+  }).filter(r => r.nazwa);
+}
+
+function collectLocEei(block) {
+  return [...block.querySelectorAll('.loc-eei-tbody tr')].map((tr, i) => {
+    const inputs = tr.querySelectorAll('input');
+    return {
+      lp: i+1, nazwa: inputs[1]?.value||'', producent: inputs[2]?.value||'',
+      model: inputs[3]?.value||'', rokZakupu: inputs[4]?.value||'',
+      wartosc: parseFloat(inputs[5]?.value)||0, nrSeryjny: inputs[6]?.value||''
+    };
+  }).filter(r => r.nazwa);
+}
+
+function collectLocations() {
+  return [...document.querySelectorAll('.loc-block')].map((block, i) => {
+    const getSuma = key => parseFloat(block.querySelector(`[data-suma-key="${key}"]`)?.value) || 0;
+    const sumaLacznie = SUMY_KEYS.reduce((s, sk) => s + getSuma(sk.key), 0);
+    return {
+      nr: i + 1,
+      nazwa: lVal(block, 'nazwa-lokalizacji'),
+      adres: lVal(block, 'adres'),
+      typLokalu: lVal(block, 'typ-lokalu'),
+      pietro: lVal(block, 'pietro'),
+      powierzchnia: lVal(block, 'powierzchnia'),
+      rokBudowy: lVal(block, 'rok-budowy'),
+      rokRemontu: lVal(block, 'rok-remontu'),
+      budynekWlasny: lCheck(block, 'budynek-wlasny'),
+      materialScian: lVal(block, 'material-scian'),
+      pokrycieDachu: lVal(block, 'pokrycie-dachu'),
+      stanTechniczny: lVal(block, 'stan-techniczny'),
+      ogrzewanie: lVal(block, 'ogrzewanie'),
+      materialyPalne: lCheck(block, 'materialy-palne'),
+      gasniceSzt: lVal(block, 'gasnice-szt'),
+      hydranty: lCheck(block, 'hydranty'),
+      dataPrzegladuGasnic: lVal(block, 'data-przegladu-gasnic'),
+      sap: lCheck(block, 'sap'),
+      tryskacze: lCheck(block, 'tryskacze'),
+      drogiEwakuacyjne: lCheck(block, 'drogi-ewakuacyjne'),
+      odlegloscPsp: lVal(block, 'odleglosc-psp'),
+      zakazPalenia: lCheck(block, 'zakaz-palenia'),
+      alarmTyp: lVal(block, 'alarm-typ'),
+      ogrodzenie: lCheck(block, 'ogrodzenie'),
+      agencjaOchrony: lVal(block, 'agencja-ochrony'),
+      agencja24h: lCheck(block, 'agencja-24h'),
+      cctv: lCheck(block, 'cctv'),
+      kraty: lCheck(block, 'kraty'),
+      rolety: lCheck(block, 'rolety'),
+      zamkiAtestowane: lCheck(block, 'zamki-atestowane'),
+      drzwiAtestowane: lCheck(block, 'drzwi-atestowane'),
+      szybyAntywlamaniowe: lCheck(block, 'szyby-antywlamaniowe'),
+      sejfKlasa: lVal(block, 'sejf-klasa'),
+      systemAlarmowy: lCheck(block, 'system-alarmowy'),
+      sumaBudynek: getSuma('budynek'),
+      sumaWyposazenie: getSuma('wyposazenie'),
+      sumaMaszyny: getSuma('maszyny'),
+      sumaSrodkiObrotowe: getSuma('obrotowe'),
+      sumaElektronika: getSuma('elektronika'),
+      sumaSprzet: getSuma('sprzet'),
+      sumaGotowkaLokal: getSuma('gotowka-lokal'),
+      sumaGotowkaTransport: getSuma('gotowka-trans'),
+      sumaSzyby: getSuma('szyby'),
+      sumaPracownicy: getSuma('pracownicy'),
+      sumaLacznie: sumaLacznie,
+      sprzetMedyczny: collectLocSprzet(block),
+      elektronikaEei: collectLocEei(block),
+    };
+  });
+}
 
 // ===== INIT =====
 async function init() {
   TOKEN = new URLSearchParams(location.search).get('token') || '';
   if (!TOKEN) { showError('Brak tokenu w linku. Skontaktuj się z agentem.'); return; }
 
-  // Pobierz dane firmy po tokenie
   let company = null;
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/crm_companies?form_token=eq.${encodeURIComponent(TOKEN)}&select=id,company,nip,regon,email,phone,city,state`, { headers: HEADERS });
@@ -597,12 +780,11 @@ async function init() {
     COMPANY_ID = company.id;
   } catch(e) { showError('Błąd połączenia z serwerem. Spróbuj odświeżyć stronę.'); return; }
 
-  // Sprawdź czy wniosek już istnieje
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?form_token=eq.${encodeURIComponent(TOKEN)}&select=id`, { headers: HEADERS });
     const data = await res.json();
-    if (Array.isArray(data) && data.length) { EXISTING_ID = data[0].id; await loadExisting(); }
-  } catch(e) { /* ignoruj, formularz będzie pusty */ }
+    if (Array.isArray(data) && data.length) { EXISTING_ID = data[0].id; }
+  } catch(e) { /* ignoruj */ }
 
   // Prefill z danych firmy
   setVal('f-nazwa', company.company || '');
@@ -612,10 +794,13 @@ async function init() {
   setVal('f-telefon', company.phone || '');
   document.getElementById('header-company').textContent = company.company || '';
 
-  buildSumaRows();
-  buildSprzet();
-  buildEei();
   addSzkodaRow();
+
+  if (EXISTING_ID) {
+    await loadExisting();
+  } else {
+    addLocation();
+  }
 
   document.getElementById('state-loading').classList.add('hidden');
   document.getElementById('state-form').classList.remove('hidden');
@@ -625,7 +810,7 @@ async function loadExisting() {
   try {
     const res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?form_token=eq.${encodeURIComponent(TOKEN)}&select=*`, { headers: HEADERS });
     const data = await res.json();
-    if (!Array.isArray(data) || !data.length) return;
+    if (!Array.isArray(data) || !data.length) { addLocation(); return; }
     const w = data[0];
 
     setVal('f-nazwa', w.nazwa_firmy);
@@ -633,39 +818,10 @@ async function loadExisting() {
     setVal('f-adres-siedziby', w.adres_siedziby); setVal('f-forma-prawna', w.forma_prawna);
     setVal('f-pkd', w.numer_pkd); setVal('f-email', w.email_kontaktowy);
     setVal('f-telefon', w.telefon); setVal('f-osoba', w.osoba_kontaktu);
-    setVal('f-stanowisko', w.stanowisko); setVal('f-adres-lok', w.adres_lokalizacji);
-    setVal('f-typ-lokalu', w.typ_lokalu); setVal('f-pietro', w.pietro);
-    setVal('f-pow', w.powierzchnia); setVal('f-rok-budowy', w.rok_budowy);
-    setVal('f-rok-remontu', w.rok_remontu);
-    setCheck('f-budynek-wlasny', w.budynek_wlasny); setCheck('f-mat-palne', w.materialy_palne);
-    setVal('f-material', w.material_scian); setVal('f-dach', w.pokrycie_dachu);
-    setVal('f-stan', w.stan_techniczny); setVal('f-ogrzewanie', w.ogrzewanie);
+    setVal('f-stanowisko', w.stanowisko);
     setVal('f-dzialalnosc', w.rodzaj_dzialalnosci); setVal('f-pracownicy', w.liczba_pracownikow);
     setVal('f-obrot', w.roczny_obrot);
-    if (w.zabiegi) document.querySelectorAll('[name=zabieg]').forEach(cb => { cb.checked = w.zabiegi.includes(cb.value); });
-    setVal('f-gasnice', w.gasnice_szt); setVal('f-przeglad-gasnic', w.data_przegladu_gasnic);
-    setVal('f-psp', w.odleglosc_psp);
-    setCheck('f-hydranty', w.hydranty); setCheck('f-sap', w.sap);
-    setCheck('f-tryskacze', w.tryskacze); setCheck('f-ewakuacja', w.drogi_ewakuacyjne);
-    setCheck('f-zakaz-palenia', w.zakaz_palenia);
-    setVal('f-alarm', w.alarm_typ); setVal('f-agencja', w.agencja_ochrony);
-    setVal('f-sejf', w.sejf_klasa);
-    setCheck('f-ogrodzenie', w.ogrodzenie); setCheck('f-agencja24h', w.agencja_24h);
-    setCheck('f-cctv', w.cctv); setCheck('f-kraty', w.kraty);
-    setCheck('f-rolety', w.rolety); setCheck('f-zamki', w.zamki_atestowane);
-    setCheck('f-drzwi', w.drzwi_atestowane); setCheck('f-szyby-aw', w.szyby_antywlamaniowe);
-    setCheck('f-sys-alarm', w.system_alarmowy);
     if (w.zakres) document.querySelectorAll('[name=zakres]').forEach(cb => { cb.checked = w.zakres.includes(cb.value); });
-
-    // Sumy
-    const sumaMap = {
-      's-budynek': w.suma_budynek, 's-wyposazenie': w.suma_wyposazenie,
-      's-maszyny': w.suma_maszyny, 's-obrotowe': w.suma_srodki_obrotowe,
-      's-elektronika': w.suma_elektronika_it, 's-medyczny': w.suma_sprzet_medyczny,
-      's-got-lokal': w.suma_gotowka_lokal, 's-got-trans': w.suma_gotowka_transport,
-      's-szyby': w.suma_szyby, 's-pracownicy': w.suma_mienie_pracownikow,
-    };
-    buildSumaRows(sumaMap);
 
     setCheck('f-brak-szkod', w.brak_szkod);
     if (!w.brak_szkod && w.szkody) { document.getElementById('szkody-table').classList.remove('hidden'); w.szkody.forEach(s => addSzkodaRow(s)); }
@@ -677,12 +833,69 @@ async function loadExisting() {
     setCheck('f-zgoda-prawdziwosc', w.zgoda_prawdziwosc);
     setCheck('f-zgoda-rodo', w.zgoda_rodo);
 
-    buildSprzet(w.sprzet_medyczny);
-    buildEei(w.elektronika_eei);
-  } catch(e) { console.error('loadExisting', e); }
+    // Załaduj lokalizacje
+    try {
+      const locRes = await fetch(`${SUPABASE_URL}/rest/v1/mienie_lokalizacje?wniosek_id=eq.${EXISTING_ID}&order=nr`, { headers: HEADERS });
+      const locs = await locRes.json();
+      if (Array.isArray(locs) && locs.length) {
+        locs.forEach(loc => addLocation(loc));
+      } else {
+        // Stary wniosek bez tabeli lokalizacji — wstaw jedną z danych wniosku
+        addLocation({
+          adres: w.adres_lokalizacji,
+          typ_lokalu: w.typ_lokalu,
+          pietro: w.pietro,
+          powierzchnia: w.powierzchnia,
+          rok_budowy: w.rok_budowy,
+          rok_remontu: w.rok_remontu,
+          budynek_wlasny: w.budynek_wlasny,
+          material_scian: w.material_scian,
+          pokrycie_dachu: w.pokrycie_dachu,
+          stan_techniczny: w.stan_techniczny,
+          ogrzewanie: w.ogrzewanie,
+          materialy_palne: w.materialy_palne,
+          gasnice_szt: w.gasnice_szt,
+          hydranty: w.hydranty,
+          data_przegladu_gasnic: w.data_przegladu_gasnic,
+          sap: w.sap,
+          tryskacze: w.tryskacze,
+          drogi_ewakuacyjne: w.drogi_ewakuacyjne,
+          odleglosc_psp: w.odleglosc_psp,
+          zakaz_palenia: w.zakaz_palenia,
+          alarm_typ: w.alarm_typ,
+          ogrodzenie: w.ogrodzenie,
+          agencja_ochrony: w.agencja_ochrony,
+          agencja_24h: w.agencja_24h,
+          cctv: w.cctv,
+          kraty: w.kraty,
+          rolety: w.rolety,
+          zamki_atestowane: w.zamki_atestowane,
+          drzwi_atestowane: w.drzwi_atestowane,
+          szyby_antywlamaniowe: w.szyby_antywlamaniowe,
+          sejf_klasa: w.sejf_klasa,
+          system_alarmowy: w.system_alarmowy,
+          suma_budynek: w.suma_budynek,
+          suma_wyposazenie: w.suma_wyposazenie,
+          suma_maszyny: w.suma_maszyny,
+          suma_obrotowe: w.suma_srodki_obrotowe,
+          suma_elektronika: w.suma_elektronika_it,
+          suma_sprzet: w.suma_sprzet_medyczny,
+          suma_gotowka_lokal: w.suma_gotowka_lokal,
+          suma_gotowka_trans: w.suma_gotowka_transport,
+          suma_szyby: w.suma_szyby,
+          suma_pracownicy: w.suma_mienie_pracownikow,
+          sprzet_medyczny: w.sprzet_medyczny,
+          elektronika_eei: w.elektronika_eei,
+        });
+      }
+    } catch(e) { addLocation(); console.error('loadExisting locs', e); }
+  } catch(e) { addLocation(); console.error('loadExisting', e); }
 }
 
 // ===== HELPERS =====
+function esc(v) { return String(v ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+function optSel(opts, selected) { return opts.map(o => `<option${o === selected ? ' selected' : ''}>${o}</option>`).join(''); }
+function tryParseJSON(v, def) { if (!v) return def; if (Array.isArray(v) || typeof v === 'object') return v; try { return JSON.parse(v); } catch(e) { return def; } }
 function setVal(id, val) { const el = document.getElementById(id); if (el && val != null) el.value = val; }
 function setCheck(id, val) { const el = document.getElementById(id); if (el) el.checked = !!val; }
 function getVal(id) { return (document.getElementById(id)?.value || '').trim(); }
@@ -700,40 +913,6 @@ function showFormAgain() {
   document.getElementById('state-form').classList.remove('hidden');
 }
 
-// ===== TABS =====
-function switchTab(name, btn) {
-  ['wniosek','sprzet','elektronika'].forEach(t => {
-    document.getElementById('tab-'+t).classList.toggle('hidden', t !== name);
-  });
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-}
-
-// ===== SUMY =====
-function buildSumaRows(vals = {}) {
-  const tbody = document.getElementById('suma-rows');
-  tbody.innerHTML = '';
-  SUMY_DEF.forEach(({ id, label }) => {
-    const val = vals[id] || 0;
-    const row = document.createElement('div');
-    row.className = 'flex flex-col sm:flex-row sm:items-center gap-2 py-2 border-b border-stone-100';
-    row.innerHTML = `
-      <div class="flex-1 text-sm text-stone-700">${label}</div>
-      <div class="sm:w-44">
-        <input type="number" min="0" step="1000" value="${val || ''}" placeholder="0"
-          id="${id}" oninput="recalcSuma()"
-          class="form-input text-right font-mono">
-      </div>`;
-    tbody.appendChild(row);
-  });
-  recalcSuma();
-}
-
-function recalcSuma() {
-  const total = SUMY_DEF.reduce((s, {id}) => s + (parseFloat(document.getElementById(id)?.value) || 0), 0);
-  document.getElementById('suma-total').textContent = fmtPLN(total);
-}
-
 // ===== SZKODY =====
 function toggleSzkody(cb) {
   document.getElementById('szkody-table').classList.toggle('hidden', cb.checked);
@@ -744,127 +923,17 @@ function addSzkodaRow(data = {}) {
   const tr = document.createElement('tr');
   tr.className = 'border-b border-stone-100';
   tr.innerHTML = `
-    <td class="py-1 pr-1"><input type="date" value="${data.data||''}" class="form-input text-xs" style="min-width:120px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.przyczyna||''}" placeholder="np. zalanie" class="form-input text-xs" style="min-width:120px"></td>
-    <td class="py-1 pr-1"><input type="number" value="${data.kwota||''}" placeholder="0" class="form-input text-xs text-right font-mono" style="min-width:100px"></td>
-    <td class="py-1 pr-1"><input type="number" value="${data.odszkodowanie||''}" placeholder="0" class="form-input text-xs text-right font-mono" style="min-width:100px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.ubezpieczyciel||''}" placeholder="np. PZU" class="form-input text-xs" style="min-width:100px"></td>
+    <td class="py-1 pr-1"><input type="date" value="${esc(data.data||'')}" class="form-input text-xs" style="min-width:120px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.przyczyna||'')}" placeholder="np. zalanie" class="form-input text-xs" style="min-width:120px"></td>
+    <td class="py-1 pr-1"><input type="number" value="${esc(data.kwota||'')}" placeholder="0" class="form-input text-xs text-right font-mono" style="min-width:100px"></td>
+    <td class="py-1 pr-1"><input type="number" value="${esc(data.odszkodowanie||'')}" placeholder="0" class="form-input text-xs text-right font-mono" style="min-width:100px"></td>
+    <td class="py-1 pr-1"><input type="text" value="${esc(data.ubezpieczyciel||'')}" placeholder="np. PZU" class="form-input text-xs" style="min-width:100px"></td>
     <td class="py-1"><button type="button" onclick="this.closest('tr').remove()" class="text-stone-400 hover:text-red-500 text-lg px-1">×</button></td>`;
   tbody.appendChild(tr);
 }
 
 function togglePolisa(cb) {
   document.getElementById('polisa-details').classList.toggle('hidden', !cb.checked);
-}
-
-// ===== SPRZĘT MEDYCZNY =====
-let sprzet_count = 0;
-function buildSprzet(rows = []) {
-  const tbody = document.getElementById('sprzet-tbody');
-  tbody.innerHTML = '';
-  sprzet_count = 0;
-  if (rows.length) { rows.forEach(r => addSprzet(r)); }
-  else { addSprzet(); addSprzet(); addSprzet(); }
-}
-
-function addSprzet(data = {}) {
-  sprzet_count++;
-  const n = sprzet_count;
-  const tbody = document.getElementById('sprzet-tbody');
-  const tr = document.createElement('tr');
-  tr.className = 'border-b border-stone-100 align-top';
-  tr.innerHTML = `
-    <td class="py-1 pr-2 text-xs text-stone-400 pt-2">${n}</td>
-    <td class="py-1 pr-1"><input type="text" value="${data.nazwa||''}" placeholder="Nazwa urządzenia" class="form-input text-xs" style="min-width:130px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.producent||''}" placeholder="Marka" class="form-input text-xs" style="min-width:90px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.model||''}" placeholder="Model" class="form-input text-xs" style="min-width:90px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.nrSeryjny||''}" class="form-input text-xs" style="min-width:80px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.rokZakupu||''}" placeholder="2022" class="form-input text-xs" style="min-width:70px"></td>
-    <td class="py-1 pr-1"><input type="number" min="0" value="${data.wartosc||''}" placeholder="0" oninput="recalcSprzet()" class="form-input text-xs text-right font-mono" style="min-width:100px"></td>
-    <td class="py-1 pr-1 pt-2"><label class="cb-row justify-center"><input type="checkbox" ${data.certCE !== false ? 'checked' : ''}></label></td>
-    <td class="py-1"><button type="button" onclick="removeRow(this,'sprzet')" class="text-stone-400 hover:text-red-500 text-lg px-1">×</button></td>`;
-  tbody.appendChild(tr);
-}
-
-function recalcSprzet() {
-  const total = [...document.querySelectorAll('#sprzet-tbody tr')].reduce((s, tr) => {
-    const inp = tr.querySelectorAll('input[type=number]')[0];
-    return s + (parseFloat(inp?.value) || 0);
-  }, 0);
-  document.getElementById('sprzet-total').textContent = fmtPLN(total);
-  const el = document.getElementById('s-medyczny');
-  if (el && !el.value) el.value = total || '';
-  recalcSuma();
-}
-
-// ===== ELEKTRONIKA EEI =====
-let eei_count = 0;
-function buildEei(rows = []) {
-  const tbody = document.getElementById('eei-tbody');
-  tbody.innerHTML = '';
-  eei_count = 0;
-  if (rows.length) { rows.forEach(r => addEei(r)); }
-  else { addEei(); addEei(); addEei(); }
-}
-
-function addEei(data = {}) {
-  eei_count++;
-  const n = eei_count;
-  const tbody = document.getElementById('eei-tbody');
-  const tr = document.createElement('tr');
-  tr.className = 'border-b border-stone-100 align-top';
-  tr.innerHTML = `
-    <td class="py-1 pr-2 text-xs text-stone-400 pt-2">${n}</td>
-    <td class="py-1 pr-1"><input type="text" value="${data.nazwa||''}" placeholder="Nazwa urządzenia" class="form-input text-xs" style="min-width:130px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.producent||''}" placeholder="Marka" class="form-input text-xs" style="min-width:90px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.model||''}" placeholder="Model" class="form-input text-xs" style="min-width:90px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.rokZakupu||''}" placeholder="2022" class="form-input text-xs" style="min-width:70px"></td>
-    <td class="py-1 pr-1"><input type="number" min="0" value="${data.wartosc||''}" placeholder="0" oninput="recalcEei()" class="form-input text-xs text-right font-mono" style="min-width:100px"></td>
-    <td class="py-1 pr-1"><input type="text" value="${data.nrSeryjny||''}" class="form-input text-xs" style="min-width:80px"></td>
-    <td class="py-1"><button type="button" onclick="removeRow(this,'eei')" class="text-stone-400 hover:text-red-500 text-lg px-1">×</button></td>`;
-  tbody.appendChild(tr);
-}
-
-function recalcEei() {
-  const total = [...document.querySelectorAll('#eei-tbody tr')].reduce((s, tr) => {
-    const inp = tr.querySelectorAll('input[type=number]')[0];
-    return s + (parseFloat(inp?.value) || 0);
-  }, 0);
-  document.getElementById('eei-total').textContent = fmtPLN(total);
-  const el = document.getElementById('s-elektronika');
-  if (el && !el.value) el.value = total || '';
-  recalcSuma();
-}
-
-function removeRow(btn, type) {
-  btn.closest('tr').remove();
-  if (type === 'sprzet') recalcSprzet();
-  else recalcEei();
-}
-
-// ===== COLLECT DATA =====
-function collectSprzet() {
-  return [...document.querySelectorAll('#sprzet-tbody tr')].map((tr, i) => {
-    const inputs = tr.querySelectorAll('input');
-    const cb = tr.querySelector('input[type=checkbox]');
-    return {
-      lp: i+1, nazwa: inputs[0]?.value||'', producent: inputs[1]?.value||'',
-      model: inputs[2]?.value||'', nrSeryjny: inputs[3]?.value||'',
-      rokZakupu: inputs[4]?.value||'', wartosc: parseFloat(inputs[5]?.value)||0,
-      certCE: cb?.checked ?? true, uwagi: ''
-    };
-  }).filter(r => r.nazwa);
-}
-
-function collectEei() {
-  return [...document.querySelectorAll('#eei-tbody tr')].map((tr, i) => {
-    const inputs = tr.querySelectorAll('input');
-    return {
-      lp: i+1, nazwa: inputs[0]?.value||'', producent: inputs[1]?.value||'',
-      model: inputs[2]?.value||'', rokZakupu: inputs[3]?.value||'',
-      wartosc: parseFloat(inputs[4]?.value)||0, nrSeryjny: inputs[5]?.value||'', uwagi: ''
-    };
-  }).filter(r => r.nazwa);
 }
 
 function collectSzkody() {
@@ -880,6 +949,119 @@ function collectSzkody() {
 }
 
 // ===== SUBMIT =====
+async function saveForm() {
+  const locs = collectLocations();
+  const sumaTotal = locs.reduce((s, l) => s + l.sumaLacznie, 0);
+
+  const payload = {
+    company_id: COMPANY_ID,
+    form_token: TOKEN,
+    nazwa_firmy: getVal('f-nazwa'),
+    nip: getVal('f-nip'), regon: getVal('f-regon'), krs: getVal('f-krs'),
+    adres_siedziby: getVal('f-adres-siedziby'), forma_prawna: getVal('f-forma-prawna'),
+    numer_pkd: getVal('f-pkd'), email_kontaktowy: getVal('f-email'),
+    telefon: getVal('f-telefon'), osoba_kontaktu: getVal('f-osoba'),
+    stanowisko: getVal('f-stanowisko'),
+    rodzaj_dzialalnosci: getVal('f-dzialalnosc'), liczba_pracownikow: getVal('f-pracownicy'),
+    roczny_obrot: getVal('f-obrot'),
+    zakres: getChecked('zakres'),
+    suma_lacznie: sumaTotal,
+    brak_szkod: getCheck('f-brak-szkod'), szkody: collectSzkody(),
+    posiada_polise: getCheck('f-ma-polise'),
+    towarzystwo_obecne: getVal('f-tow'), nr_polisy_obecny: getVal('f-nr-polisy'),
+    waznosc_do: getVal('f-waznosc'),
+    roczna_skladka_obecna: parseFloat(getVal('f-skladka-obecna')) || null,
+    uwagi: getVal('f-uwagi'),
+    zgoda_prawdziwosc: getCheck('f-zgoda-prawdziwosc'), zgoda_rodo: getCheck('f-zgoda-rodo'),
+    updated_at: new Date().toISOString(),
+  };
+
+  let wniosekId = EXISTING_ID;
+  let res;
+  if (EXISTING_ID) {
+    res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?id=eq.${EXISTING_ID}`, {
+      method: 'PATCH', headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(payload)
+    });
+  } else {
+    res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski`, {
+      method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=representation' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const created = await res.json();
+    wniosekId = created[0]?.id;
+    EXISTING_ID = wniosekId;
+    res = { ok: true }; // mark as ok since we already consumed the response
+  }
+  if (!res.ok) throw new Error(await res.text());
+
+  // Zapisz lokalizacje
+  await fetch(`${SUPABASE_URL}/rest/v1/mienie_lokalizacje?wniosek_id=eq.${wniosekId}`, {
+    method: 'DELETE', headers: HEADERS
+  });
+
+  for (const loc of locs) {
+    const locPayload = {
+      wniosek_id: wniosekId,
+      company_id: COMPANY_ID,
+      form_token: TOKEN,
+      nr: loc.nr,
+      nazwa: loc.nazwa,
+      adres: loc.adres,
+      typ_lokalu: loc.typLokalu,
+      pietro: loc.pietro,
+      powierzchnia: parseFloat(loc.powierzchnia) || null,
+      rok_budowy: loc.rokBudowy,
+      rok_remontu: loc.rokRemontu,
+      budynek_wlasny: loc.budynekWlasny,
+      material_scian: loc.materialScian,
+      pokrycie_dachu: loc.pokrycieDachu,
+      stan_techniczny: loc.stanTechniczny,
+      ogrzewanie: loc.ogrzewanie,
+      materialy_palne: loc.materialyPalne,
+      gasnice_szt: loc.gasniceSzt,
+      hydranty: loc.hydranty,
+      data_przegladu_gasnic: loc.dataPrzegladuGasnic || null,
+      sap: loc.sap,
+      tryskacze: loc.tryskacze,
+      drogi_ewakuacyjne: loc.drogiEwakuacyjne,
+      odleglosc_psp: loc.odlegloscPsp,
+      zakaz_palenia: loc.zakazPalenia,
+      alarm_typ: loc.alarmTyp,
+      ogrodzenie: loc.ogrodzenie,
+      agencja_ochrony: loc.agencjaOchrony,
+      agencja_24h: loc.agencja24h,
+      cctv: loc.cctv,
+      kraty: loc.kraty,
+      rolety: loc.rolety,
+      zamki_atestowane: loc.zamkiAtestowane,
+      drzwi_atestowane: loc.drzwiAtestowane,
+      szyby_antywlamaniowe: loc.szybyAntywlamaniowe,
+      sejf_klasa: loc.sejfKlasa,
+      system_alarmowy: loc.systemAlarmowy,
+      suma_budynek: loc.sumaBudynek,
+      suma_wyposazenie: loc.sumaWyposazenie,
+      suma_maszyny: loc.sumaMaszyny,
+      suma_srodki_obrotowe: loc.sumaSrodkiObrotowe,
+      suma_elektronika_it: loc.sumaElektronika,
+      suma_sprzet_medyczny: loc.sumaSprzet,
+      suma_gotowka_lokal: loc.sumaGotowkaLokal,
+      suma_gotowka_transport: loc.sumaGotowkaTransport,
+      suma_szyby: loc.sumaSzyby,
+      suma_mienie_pracownikow: loc.sumaPracownicy,
+      suma_lacznie: loc.sumaLacznie,
+      sprzet_medyczny: JSON.stringify(loc.sprzetMedyczny),
+      elektronika_eei: JSON.stringify(loc.elektronikaEei),
+    };
+    const lr = await fetch(`${SUPABASE_URL}/rest/v1/mienie_lokalizacje`, {
+      method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(locPayload)
+    });
+    if (!lr.ok) console.error('loc save error', await lr.text());
+  }
+}
+
 async function handleSubmit() {
   const btn = document.getElementById('submit-btn');
   const msgEl = document.getElementById('validation-msg');
@@ -890,7 +1072,6 @@ async function handleSubmit() {
   if (!getVal('f-adres-siedziby')) errors.push('Podaj adres siedziby');
   if (!getVal('f-email')) errors.push('Podaj e-mail kontaktowy');
   if (!getVal('f-telefon')) errors.push('Podaj numer telefonu');
-  if (!getVal('f-adres-lok') && !getVal('f-adres-siedziby')) errors.push('Podaj adres lokalizacji');
   if (!getVal('f-dzialalnosc')) errors.push('Podaj rodzaj działalności');
   if (!getCheck('f-zgoda-prawdziwosc')) errors.push('Zaznacz oświadczenie o prawdziwości danych');
   if (!getCheck('f-zgoda-rodo')) errors.push('Zaznacz zgodę RODO');
@@ -905,75 +1086,8 @@ async function handleSubmit() {
   btn.disabled = true;
   btn.textContent = 'Wysyłam…';
 
-  const sprzet = collectSprzet();
-  const eei = collectEei();
-  const sprzet_total = sprzet.reduce((s,r) => s+r.wartosc, 0);
-  const eei_total = eei.reduce((s,r) => s+r.wartosc, 0);
-
-  const payload = {
-    company_id: COMPANY_ID,
-    form_token: TOKEN,
-    nazwa_firmy: getVal('f-nazwa'),
-    nip: getVal('f-nip'), regon: getVal('f-regon'), krs: getVal('f-krs'),
-    adres_siedziby: getVal('f-adres-siedziby'), forma_prawna: getVal('f-forma-prawna'),
-    numer_pkd: getVal('f-pkd'), email_kontaktowy: getVal('f-email'),
-    telefon: getVal('f-telefon'), osoba_kontaktu: getVal('f-osoba'),
-    stanowisko: getVal('f-stanowisko'),
-    adres_lokalizacji: getVal('f-adres-lok') || getVal('f-adres-siedziby'),
-    typ_lokalu: getVal('f-typ-lokalu'), pietro: getVal('f-pietro'),
-    powierzchnia: parseFloat(getVal('f-pow')) || null,
-    rok_budowy: getVal('f-rok-budowy'), rok_remontu: getVal('f-rok-remontu'),
-    budynek_wlasny: getCheck('f-budynek-wlasny'), material_scian: getVal('f-material'),
-    pokrycie_dachu: getVal('f-dach'), stan_techniczny: getVal('f-stan'),
-    ogrzewanie: getVal('f-ogrzewanie'), materialy_palne: getCheck('f-mat-palne'),
-    rodzaj_dzialalnosci: getVal('f-dzialalnosc'), liczba_pracownikow: getVal('f-pracownicy'),
-    roczny_obrot: getVal('f-obrot'),
-    gasnice_szt: getVal('f-gasnice'), hydranty: getCheck('f-hydranty'),
-    data_przegladu_gasnic: getVal('f-przeglad-gasnic'), sap: getCheck('f-sap'),
-    tryskacze: getCheck('f-tryskacze'), drogi_ewakuacyjne: getCheck('f-ewakuacja'),
-    odleglosc_psp: getVal('f-psp'), zakaz_palenia: getCheck('f-zakaz-palenia'),
-    alarm_typ: getVal('f-alarm'), ogrodzenie: getCheck('f-ogrodzenie'),
-    agencja_ochrony: getVal('f-agencja'), agencja_24h: getCheck('f-agencja24h'),
-    cctv: getCheck('f-cctv'), kraty: getCheck('f-kraty'), rolety: getCheck('f-rolety'),
-    zamki_atestowane: getCheck('f-zamki'), drzwi_atestowane: getCheck('f-drzwi'),
-    szyby_antywlamaniowe: getCheck('f-szyby-aw'), sejf_klasa: getVal('f-sejf'),
-    system_alarmowy: getCheck('f-sys-alarm'),
-    zakres: getChecked('zakres'),
-    suma_budynek: parseFloat(document.getElementById('s-budynek')?.value)||0,
-    suma_wyposazenie: parseFloat(document.getElementById('s-wyposazenie')?.value)||0,
-    suma_maszyny: parseFloat(document.getElementById('s-maszyny')?.value)||0,
-    suma_srodki_obrotowe: parseFloat(document.getElementById('s-obrotowe')?.value)||0,
-    suma_elektronika_it: parseFloat(document.getElementById('s-elektronika')?.value) || eei_total,
-    suma_sprzet_medyczny: parseFloat(document.getElementById('s-medyczny')?.value) || sprzet_total,
-    suma_gotowka_lokal: parseFloat(document.getElementById('s-got-lokal')?.value)||0,
-    suma_gotowka_transport: parseFloat(document.getElementById('s-got-trans')?.value)||0,
-    suma_szyby: parseFloat(document.getElementById('s-szyby')?.value)||0,
-    suma_mienie_pracownikow: parseFloat(document.getElementById('s-pracownicy')?.value)||0,
-    brak_szkod: getCheck('f-brak-szkod'), szkody: collectSzkody(),
-    posiada_polise: getCheck('f-ma-polise'),
-    towarzystwo_obecne: getVal('f-tow'), nr_polisy_obecny: getVal('f-nr-polisy'),
-    waznosc_do: getVal('f-waznosc'),
-    roczna_skladka_obecna: parseFloat(getVal('f-skladka-obecna')) || null,
-    uwagi: getVal('f-uwagi'),
-    zgoda_prawdziwosc: getCheck('f-zgoda-prawdziwosc'), zgoda_rodo: getCheck('f-zgoda-rodo'),
-    sprzet_medyczny: sprzet, elektronika_eei: eei,
-    updated_at: new Date().toISOString(),
-  };
-
   try {
-    let res;
-    if (EXISTING_ID) {
-      res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?id=eq.${EXISTING_ID}`, {
-        method: 'PATCH', headers: { ...HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify(payload)
-      });
-    } else {
-      res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski`, {
-        method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' },
-        body: JSON.stringify(payload)
-      });
-    }
-    if (!res.ok) throw new Error(await res.text());
+    await saveForm();
     document.getElementById('state-form').classList.add('hidden');
     document.getElementById('state-success').classList.remove('hidden');
     window.scrollTo(0, 0);
