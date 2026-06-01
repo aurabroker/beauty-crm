@@ -307,27 +307,6 @@
             </select>
           </div>
         </div>
-        <p class="text-xs font-semibold text-stone-600 mb-2 uppercase tracking-wide">Wykonywane zabiegi (zaznacz TAK):</p>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Podstawowe zabiegi pielęgnacyjne"><span class="text-sm text-stone-600">Podstawowe zabiegi pielęgnacyjne</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Wypełniacze (kwas hialuronowy)"><span class="text-sm text-stone-600">Wypełniacze (kwas hialuronowy)</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Masaż klasyczny / relaksacyjny"><span class="text-sm text-stone-600">Masaż klasyczny / relaksacyjny</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Toksyna botulinowa (botoks)"><span class="text-sm text-stone-600">Toksyna botulinowa (botoks)</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Makijaż permanentny / microblading"><span class="text-sm text-stone-600">Makijaż permanentny / microblading</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Nici liftingujące"><span class="text-sm text-stone-600">Nici liftingujące</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Mezoterapia igłowa"><span class="text-sm text-stone-600">Mezoterapia igłowa</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="HIFU / ultradźwięki / kawitacja"><span class="text-sm text-stone-600">HIFU / ultradźwięki / kawitacja</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Laser / IPL / fototerapia LED"><span class="text-sm text-stone-600">Laser / IPL / fototerapia LED</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Peeling chemiczny"><span class="text-sm text-stone-600">Peeling chemiczny</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Radiofrekwencja RF"><span class="text-sm text-stone-600">Radiofrekwencja RF (mono/bi/multi)</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Tatuaż / piercing"><span class="text-sm text-stone-600">Tatuaż / piercing</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Kriolipoliza"><span class="text-sm text-stone-600">Kriolipoliza</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="SPA / wellness"><span class="text-sm text-stone-600">SPA / wellness</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Karboksyterapia / PRP"><span class="text-sm text-stone-600">Karboksyterapia / PRP</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Paznokcie (żel/hybryda/akryl)"><span class="text-sm text-stone-600">Paznokcie (żel/hybryda/akryl)</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Lipoliza iniekcyjna"><span class="text-sm text-stone-600">Lipoliza iniekcyjna</span></label>
-          <label class="cb-row"><input type="checkbox" name="zabieg" value="Przedłużanie rzęs / laminacja"><span class="text-sm text-stone-600">Przedłużanie rzęs / laminacja</span></label>
-        </div>
       </div>
 
       <!-- S4A: Zabezpieczenia ppoż -->
@@ -396,18 +375,19 @@
       <div class="section-card">
         <div class="section-title">Sekcja 5 — Zakres ubezpieczenia (zaznacz potrzebne)</div>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Mienie od ognia i zdarzeń losowych"><span class="text-sm text-stone-600">Mienie od ognia i zdarzeń losowych</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Mienie All Risk (wszystkie ryzyka)"><span class="text-sm text-stone-600">Mienie All Risk (wszystkie ryzyka)</span></label>
+          <!-- Mienie od ognia + rozwijalne składniki -->
+          <label class="cb-row">
+            <input type="checkbox" name="zakres" value="Mienie od ognia i zdarzeń losowych" id="zakres-mienie-ogien">
+            <span class="text-sm text-stone-600">Mienie od ognia i zdarzeń losowych</span>
+          </label>
+          <div id="mienie-ogien-sub" class="ml-7 mt-1 mb-2 pl-3 border-l-2 border-teal-200 flex flex-col gap-1" style="display:none">
+            <label class="cb-row"><input type="checkbox" name="zakres" value="Szyby i inne przedmioty"><span class="text-sm text-stone-500">Szyby i inne przedmioty od stłuczenia</span></label>
+            <label class="cb-row"><input type="checkbox" name="zakres" value="Dewastacja / wandalizm"><span class="text-sm text-stone-500">Dewastacja / wandalizm</span></label>
+            <label class="cb-row"><input type="checkbox" name="zakres" value="Przepięcia elektryczne"><span class="text-sm text-stone-500">Przepięcia elektryczne</span></label>
+          </div>
           <label class="cb-row"><input type="checkbox" name="zakres" value="Kradzież z włamaniem i rabunek"><span class="text-sm text-stone-600">Kradzież z włamaniem i rabunek</span></label>
           <label class="cb-row"><input type="checkbox" name="zakres" value="Sprzęt elektroniczny (EEI)"><span class="text-sm text-stone-600">Sprzęt elektroniczny (EEI)</span></label>
           <label class="cb-row"><input type="checkbox" name="zakres" value="Sprzęt medyczny / aparatura"><span class="text-sm text-stone-600">Sprzęt medyczny / aparatura</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Szyby i inne przedmioty"><span class="text-sm text-stone-600">Szyby i inne przedmioty</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Utrata zysku (BI)"><span class="text-sm text-stone-600">Utrata zysku (BI)</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Dewastacja / wandalizm"><span class="text-sm text-stone-600">Dewastacja / wandalizm</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Przepięcia elektryczne"><span class="text-sm text-stone-600">Przepięcia elektryczne</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Assistance"><span class="text-sm text-stone-600">Assistance</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Ochrona danych / Cyber"><span class="text-sm text-stone-600">Ochrona danych / Cyber</span></label>
-          <label class="cb-row"><input type="checkbox" name="zakres" value="Ochrona prawna"><span class="text-sm text-stone-600">Ochrona prawna</span></label>
         </div>
       </div>
 
@@ -947,7 +927,7 @@ async function handleSubmit() {
     pokrycie_dachu: getVal('f-dach'), stan_techniczny: getVal('f-stan'),
     ogrzewanie: getVal('f-ogrzewanie'), materialy_palne: getCheck('f-mat-palne'),
     rodzaj_dzialalnosci: getVal('f-dzialalnosc'), liczba_pracownikow: getVal('f-pracownicy'),
-    roczny_obrot: getVal('f-obrot'), zabiegi: getChecked('zabieg'),
+    roczny_obrot: getVal('f-obrot'),
     gasnice_szt: getVal('f-gasnice'), hydranty: getCheck('f-hydranty'),
     data_przegladu_gasnic: getVal('f-przeglad-gasnic'), sap: getCheck('f-sap'),
     tryskacze: getCheck('f-tryskacze'), drogi_ewakuacyjne: getCheck('f-ewakuacja'),
@@ -1007,6 +987,16 @@ async function handleSubmit() {
 }
 
 init();
+
+// Rozwijanie składników "Mienie od ognia"
+(function() {
+  const cb = document.getElementById('zakres-mienie-ogien');
+  const sub = document.getElementById('mienie-ogien-sub');
+  if (!cb || !sub) return;
+  const toggle = () => { sub.style.display = cb.checked ? 'flex' : 'none'; };
+  cb.addEventListener('change', toggle);
+  toggle();
+})();
 </script>
 </body>
 </html>
