@@ -22,13 +22,16 @@ function today12m(): { today: string; plus12: string } {
   return { today: t.toISOString().split('T')[0], plus12: p.toISOString().split('T')[0] };
 }
 
-type Tab = 'info' | 'polisy' | 'historia' | 'przypomnienia';
+type Tab = 'info' | 'polisy' | 'historia' | 'przypomnienia' | 'ubezpieczenie';
 
 export function CompanyDrawer({ company, onClose }: { company: Company; onClose: () => void }) {
   const { stages, addHistory, addReminder, toggleReminder, deleteReminder, updateCompanyStatus,
-          addPolicy, updatePolicy, deletePolicy, updateCompany, sendToGR, currentUser } = useCRMStore();
+          addPolicy, updatePolicy, deletePolicy, updateCompany, sendToGR, currentUser,
+          mienieWnioski, loadMienieWnioski, generateFormToken, resetFormToken } = useCRMStore();
   const [sendingGR, setSendingGR] = useState(false);
   const [tab, setTab] = useState<Tab>('info');
+  const [generatingToken, setGeneratingToken] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
   const [histType, setHistType] = useState<ContactHistory['type']>('notatka');
   const [histNote, setHistNote] = useState('');
   const [reminderText, setReminderText] = useState('');
@@ -127,6 +130,24 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
 
   const reminderPreview = policyForm.dataDo ? calcReminder(policyForm.dataDo) : '';
 
+  const wniosek = mienieWnioski.find(w => w.companyId === company.id);
+  const handleTabUbezpieczenie = () => {
+    setTab('ubezpieczenie');
+    if (mienieWnioski.length === 0) loadMienieWnioski();
+  };
+  const handleGenerateToken = async () => {
+    setGeneratingToken(true);
+    await (company.formToken ? resetFormToken(company.id) : generateFormToken(company.id));
+    setGeneratingToken(false);
+  };
+  const handleCopyLink = async () => {
+    const url = `${window.location.origin}/mienie-formularz.html?token=${company.formToken}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedToken(true);
+    setTimeout(() => setCopiedToken(false), 2000);
+  };
+  const PLN = (v: number) => v ? v.toLocaleString('pl-PL', { style: 'currency', currency: 'PLN', maximumFractionDigits: 0 }) : '—';
+
   return (
     <div className="fixed inset-0 z-50 flex">
       <div className="flex-1 bg-black/30" onClick={onClose}/>
@@ -190,6 +211,10 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                : 'Informacje'}
             </button>
           ))}
+          <button onClick={handleTabUbezpieczenie}
+            className={`flex-1 py-3 text-xs font-medium uppercase tracking-wider transition-colors ${tab==='ubezpieczenie' ? 'bg-white text-zinc-900 border-b-2 border-zinc-900' : 'text-zinc-400 hover:text-zinc-700'}`}>
+            {wniosek ? '🏠 Wniosek ✓' : '🏠 Wniosek'}
+          </button>
         </div>
 
         {/* Content */}
@@ -569,6 +594,148 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                     })}
                   </div>
               }
+            </div>
+          )}
+
+          {/* ── UBEZPIECZENIE ── */}
+          {tab === 'ubezpieczenie' && (
+            <div className="p-6 space-y-6">
+              {/* Link do formularza */}
+              <div className="bg-zinc-50 border border-zinc-200 rounded p-4">
+                <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Link do formularza mienie</div>
+                {company.formToken ? (
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <code className="text-xs bg-zinc-100 border border-zinc-200 px-2 py-1 rounded flex-1 truncate text-zinc-600">
+                      {`${window.location.origin}/mienie-formularz.html?token=${company.formToken}`}
+                    </code>
+                    <button onClick={handleCopyLink}
+                      className={`text-xs px-3 py-1.5 rounded font-medium transition-colors ${copiedToken ? 'bg-emerald-500 text-white' : 'bg-pink-600 text-white hover:bg-pink-700'}`}>
+                      {copiedToken ? '✓ Skopiowano' : 'Kopiuj'}
+                    </button>
+                    <a href={`${window.location.origin}/mienie-formularz.html?token=${company.formToken}`} target="_blank" rel="noreferrer"
+                      className="text-xs px-3 py-1.5 rounded border border-zinc-300 text-zinc-600 hover:bg-zinc-100 transition-colors">
+                      Otwórz ↗
+                    </a>
+                    <button onClick={handleGenerateToken} disabled={generatingToken}
+                      title="Generuj nowy link (unieważni stary)"
+                      className="text-xs px-2 py-1.5 border border-zinc-300 text-zinc-500 hover:border-zinc-500 rounded transition-colors">
+                      {generatingToken ? '…' : '↻ Nowy link'}
+                    </button>
+                  </div>
+                ) : (
+                  <button onClick={handleGenerateToken} disabled={generatingToken}
+                    className="text-sm px-4 py-2 bg-pink-600 text-white rounded hover:bg-pink-700 transition-colors">
+                    {generatingToken ? 'Generuję…' : '+ Generuj link do formularza'}
+                  </button>
+                )}
+              </div>
+
+              {/* Wniosek */}
+              {wniosek ? (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Wypełniony wniosek</div>
+                    <div className="text-xs text-zinc-400">złożony {wniosek.createdAt ? new Date(wniosek.createdAt).toLocaleDateString('pl-PL') : '—'}</div>
+                  </div>
+
+                  {/* Sumy */}
+                  <div className="bg-pink-50 border border-pink-200 rounded p-4">
+                    <div className="text-xs font-bold text-pink-700 uppercase tracking-widest mb-3">Sumy ubezpieczenia</div>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                      {[
+                        ['Budynek / nakłady', wniosek.sumaBudynek],
+                        ['Wyposażenie stałe', wniosek.sumaWyposazenie],
+                        ['Maszyny i urządzenia', wniosek.sumaMaszyny],
+                        ['Środki obrotowe', wniosek.sumaSrodkiObrotowe],
+                        ['Elektronika / IT', wniosek.sumaElektronikaIt],
+                        ['Sprzęt medyczny', wniosek.sumaSprzet],
+                        ['Gotówka w lokalu', wniosek.sumaGotowkaLokal],
+                        ['Gotówka w transporcie', wniosek.sumaGotowkaTransport],
+                        ['Szyby i przedmioty', wniosek.sumaSzyby],
+                        ['Mienie pracowników', wniosek.sumaMieniePracownikow],
+                      ].map(([label, val]) => (
+                        <div key={label as string} className="flex justify-between border-b border-pink-100 pb-1">
+                          <span className="text-zinc-500 text-xs">{label as string}</span>
+                          <span className="font-medium text-zinc-800 text-xs">{PLN(val as number)}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex justify-between font-bold text-base mt-3 pt-2 border-t border-pink-300">
+                      <span className="text-zinc-700">ŁĄCZNIE</span>
+                      <span className="text-pink-600">{PLN(wniosek.sumaLacznie)}</span>
+                    </div>
+                  </div>
+
+                  {/* Dane lokalu */}
+                  <div className="grid grid-cols-2 gap-3 text-xs">
+                    {[
+                      ['Adres lokalizacji', wniosek.adresLokalizacji],
+                      ['Typ lokalu', wniosek.typLokalu],
+                      ['Powierzchnia', wniosek.powierzchnia ? `${wniosek.powierzchnia} m²` : null],
+                      ['Rok budowy / remontu', [wniosek.rokBudowy, wniosek.rokRemontu].filter(Boolean).join(' / ') || null],
+                      ['Rodzaj działalności', wniosek.rodzajDzialalnosci],
+                      ['Pracownicy', wniosek.liczbaPracownikow],
+                      ['Alarm', wniosek.alarmTyp],
+                      ['CCTV', wniosek.cctv ? 'TAK' : 'NIE'],
+                    ].map(([label, val]) => val ? (
+                      <div key={label as string} className="bg-zinc-50 border border-zinc-100 rounded p-2">
+                        <div className="text-zinc-400 mb-0.5">{label as string}</div>
+                        <div className="text-zinc-800 font-medium">{val as string}</div>
+                      </div>
+                    ) : null)}
+                  </div>
+
+                  {/* Zabiegi */}
+                  {wniosek.zabiegi?.length > 0 && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1.5">Wykonywane zabiegi</div>
+                      <div className="flex flex-wrap gap-1">
+                        {wniosek.zabiegi.map(z => (
+                          <span key={z} className="text-xs bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded">{z}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Zakres */}
+                  {wniosek.zakres?.length > 0 && (
+                    <div>
+                      <div className="text-xs text-zinc-400 mb-1.5">Zakres ubezpieczenia</div>
+                      <div className="flex flex-wrap gap-1">
+                        {wniosek.zakres.map(z => (
+                          <span key={z} className="text-xs bg-pink-50 text-pink-700 border border-pink-200 px-2 py-0.5 rounded">{z}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dotychczasowa polisa */}
+                  {wniosek.posiadaPolise && (
+                    <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs">
+                      <div className="font-bold text-amber-700 mb-2">Dotychczasowe ubezpieczenie</div>
+                      <div className="grid grid-cols-2 gap-1 text-zinc-700">
+                        <span className="text-zinc-500">Towarzystwo:</span><span>{wniosek.towarzystwoObecne || '—'}</span>
+                        <span className="text-zinc-500">Nr polisy:</span><span>{wniosek.nrPolisyObecny || '—'}</span>
+                        <span className="text-zinc-500">Ważna do:</span><span>{wniosek.waznoscDo || '—'}</span>
+                        <span className="text-zinc-500">Składka roczna:</span><span>{wniosek.rocznaSlkadkaObecna ? PLN(wniosek.rocznaSlkadkaObecna) : '—'}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Uwagi */}
+                  {wniosek.uwagi && (
+                    <div className="bg-zinc-50 border border-zinc-200 rounded p-3 text-xs text-zinc-700">
+                      <div className="text-zinc-400 mb-1">Uwagi klienta</div>
+                      {wniosek.uwagi}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-10 text-zinc-400 text-sm">
+                  Klient nie złożył jeszcze wniosku.<br/>
+                  <span className="text-xs">Wyślij link do formularza powyżej.</span>
+                </div>
+              )}
             </div>
           )}
         </div>

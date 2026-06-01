@@ -43,6 +43,53 @@ export interface Company {
   grSentAt?: string;
   status: Status; assignedTo?: string; assignedUserId?: string;
   history: ContactHistory[]; reminders: Reminder[]; policies: Policy[];
+  formToken?: string;
+}
+
+export interface MienieSprzet {
+  lp: number; nazwa: string; producent: string; model: string;
+  nrSeryjny: string; rokZakupu: string; wartosc: number; certCE: boolean; uwagi: string;
+}
+
+export interface MienieElektronika {
+  lp: number; nazwa: string; producent: string; model: string;
+  rokZakupu: string; wartosc: number; nrSeryjny: string; uwagi: string;
+}
+
+export interface MienieSzkoda {
+  data: string; przyczyna: string; kwota: number; odszkodowanie: number; ubezpieczyciel: string;
+}
+
+export interface MienieWniosek {
+  id: string;
+  companyId: number | null;
+  formToken: string;
+  nazwaFirmy: string; nip: string; regon: string; krs: string;
+  adresSiedziby: string; formaPrawna: string; numerPkd: string;
+  emailKontaktowy: string; telefon: string; osobaKontaktu: string; stanowisko: string;
+  adresLokalizacji: string; typLokalu: string; pietro: string; powierzchnia: number | null;
+  rokBudowy: string; rokRemontu: string; budynekWlasny: boolean;
+  materialScian: string; pokrycieDachu: string; stanTechniczny: string;
+  ogrzewanie: string; materialyPalne: boolean;
+  rodzajDzialalnosci: string; liczbaPracownikow: string; rocznyObrot: string;
+  zabiegi: string[];
+  gasniceSzt: string; hydranty: boolean; dataPrzegladuGasnic: string; sap: boolean;
+  tryskacze: boolean; drogiEwakuacyjne: boolean; odlegloscPsp: string; zakazPalenia: boolean;
+  alarmTyp: string; ogrodzenie: boolean; agencjaOchrony: string; agencja24h: boolean;
+  cctv: boolean; kraty: boolean; rolety: boolean; zamkiAtestowane: boolean;
+  drzwiAtestowane: boolean; szybyAntywlamaniowe: boolean; sejfKlasa: string; systemAlarmowy: boolean;
+  zakres: string[];
+  sumaBudynek: number; sumaWyposazenie: number; sumaMaszyny: number;
+  sumaSrodkiObrotowe: number; sumaElektronikaIt: number; sumaSprzet: number;
+  sumaGotowkaLokal: number; sumaGotowkaTransport: number; sumaSzyby: number;
+  sumaMieniePracownikow: number; sumaLacznie: number;
+  brakSzkod: boolean; szkody: MienieSzkoda[];
+  posiadaPolise: boolean; towarzystwoObecne: string; nrPolisyObecny: string;
+  waznoscDo: string; rocznaSlkadkaObecna: number | null;
+  uwagi: string; zgodaPrawdziwosc: boolean; zgodaRodo: boolean;
+  sprzet: MienieSprzet[];
+  elektronika: MienieElektronika[];
+  createdAt: string; updatedAt: string;
 }
 
 export const DEFAULT_STAGES: PipelineStage[] = [

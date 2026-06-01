@@ -33,10 +33,9 @@ export function Clients({ onSelectCompany }: ClientsProps) {
     : companies.filter(c => !c.assignedTo || c.assignedTo === currentUser?.name);
 
   const clients = useMemo(() => {
-    let r = visible.filter(c => c.status === 'zamkniety');
-    if (search) r = r.filter(c =>
-      `${c.company} ${c.contact} ${c.nip}`.toLowerCase().includes(search.toLowerCase())
-    );
+    let r = search
+      ? visible.filter(c => `${c.company} ${c.contact} ${c.nip} ${c.phone} ${c.email}`.toLowerCase().includes(search.toLowerCase()))
+      : visible.filter(c => c.status === 'zamkniety');
     if (filter === 'aktywne')  r = r.filter(c => c.policies.some(p => p.status === 'aktywna' && p.dataDo && daysLeft(p.dataDo) > 45));
     if (filter === 'wygasaja') r = r.filter(c => c.policies.some(p => p.status === 'aktywna' && p.dataDo && daysLeft(p.dataDo) <= 45 && daysLeft(p.dataDo) > 0));
     if (filter === 'wygasle')  r = r.filter(c => c.policies.some(p => p.dataDo && daysLeft(p.dataDo) <= 0));
