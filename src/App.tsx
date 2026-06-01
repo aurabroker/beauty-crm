@@ -13,8 +13,9 @@ import { Reports } from './components/Reports';
 import { AdminPanel } from './components/AdminPanel';
 import { Clients } from './components/Clients';
 import { Home } from './components/Home';
+import { Mienie } from './components/Mienie';
 
-type View = 'home' | 'dashboard' | 'pipeline' | 'klienci' | 'calendar' | 'reports' | 'admin';
+type View = 'home' | 'dashboard' | 'pipeline' | 'klienci' | 'calendar' | 'reports' | 'mienie' | 'admin';
 
 const NAV: { key: View; label: string }[] = [
   { key:'home',      label:'HOME' },
@@ -23,6 +24,7 @@ const NAV: { key: View; label: string }[] = [
   { key:'klienci',   label:'Klienci' },
   { key:'calendar',  label:'Kalendarz' },
   { key:'reports',   label:'Raporty' },
+  { key:'mienie',    label:'Ubezpieczenia' },
   { key:'admin',     label:'Admin' },
 ];
 
@@ -175,6 +177,7 @@ function CRMApp() {
         {view === 'klienci'   && <Clients onSelectCompany={setSelectedCompany}/>}
         {view === 'calendar'  && <Calendar onSelectCompany={setSelectedCompany}/>}
         {view === 'reports'   && <Reports/>}
+        {view === 'mienie'    && <Mienie onSelectCompany={setSelectedCompany}/>}
         {view === 'admin'     && <AdminPanel/>}
       </main>
 
