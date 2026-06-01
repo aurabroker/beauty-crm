@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
-import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy } from '../data/companies';
+import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy, MienieWniosek } from '../data/companies';
 import { DEFAULT_STAGES } from '../data/companies';
 
 function calcReminderDate(dataDo: string): string {
@@ -28,6 +28,7 @@ function dbRowToCompany(row: Record<string,unknown>, history: ContactHistory[]=[
     grSentAt: (row.gr_sent_at as string) ?? '',
     status: (row.status as Company['status']) ?? 'lead',
     assignedTo: (row.assigned_to as string) ?? '',
+    formToken: (row.form_token as string) ?? undefined,
     history, reminders, policies,
   };
 }
@@ -58,8 +59,13 @@ interface CRMState {
   stages: PipelineStage[];
   currentUser: CRMUser | null;
   loading: boolean;
+  mienieWnioski: MienieWniosek[];
+  mienieLoading: boolean;
   loadData: () => Promise<void>;
   setCurrentUser: (user: CRMUser) => void;
+  loadMienieWnioski: () => Promise<void>;
+  generateFormToken: (companyId: number) => Promise<string>;
+  resetFormToken: (companyId: number) => Promise<string>;
   addCompany: (data: Partial<Company>) => Promise<void>;
   deleteCompany: (id: number) => Promise<void>;
   updateCompanyStatus: (id: number, status: Company['status']) => void;
@@ -81,7 +87,7 @@ interface CRMState {
 
 export const useCRMStore = create<CRMState>()((set, get) => ({
   companies: [], users: [], stages: DEFAULT_STAGES,
-  currentUser: null, loading: true,
+  currentUser: null, loading: true, mienieWnioski: [], mienieLoading: false,
 
   setCurrentUser: (user) => { localStorage.setItem('crm-user-id', user.id); set({ currentUser: user }); },
 
@@ -264,6 +270,69 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     const status = ok ? 'ok' : 'error';
     await supabase.from('crm_companies').update({ gr_status: status, gr_sent_at: now }).eq('id', companyId);
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, grStatus: status, grSentAt: now } : c) }));
+  },
+
+  loadMienieWnioski: async () => {
+    set({ mienieLoading: true });
+    const { data, error } = await supabase.from('mienie_wnioski').select('*').order('created_at', { ascending: false });
+    if (!error && data) {
+      const wnioski: MienieWniosek[] = data.map(r => ({
+        id: r.id, companyId: r.company_id, formToken: r.form_token,
+        nazwaFirmy: r.nazwa_firmy ?? '', nip: r.nip ?? '', regon: r.regon ?? '', krs: r.krs ?? '',
+        adresSiedziby: r.adres_siedziby ?? '', formaPrawna: r.forma_prawna ?? '', numerPkd: r.numer_pkd ?? '',
+        emailKontaktowy: r.email_kontaktowy ?? '', telefon: r.telefon ?? '',
+        osobaKontaktu: r.osoba_kontaktu ?? '', stanowisko: r.stanowisko ?? '',
+        adresLokalizacji: r.adres_lokalizacji ?? '', typLokalu: r.typ_lokalu ?? '',
+        pietro: r.pietro ?? '', powierzchnia: r.powierzchnia ? Number(r.powierzchnia) : null,
+        rokBudowy: r.rok_budowy ?? '', rokRemontu: r.rok_remontu ?? '',
+        budynekWlasny: r.budynek_wlasny ?? false, materialScian: r.material_scian ?? '',
+        pokrycieDachu: r.pokrycie_dachu ?? '', stanTechniczny: r.stan_techniczny ?? '',
+        ogrzewanie: r.ogrzewanie ?? '', materialyPalne: r.materialy_palne ?? false,
+        rodzajDzialalnosci: r.rodzaj_dzialalnosci ?? '', liczbaPracownikow: r.liczba_pracownikow ?? '',
+        rocznyObrot: r.roczny_obrot ?? '', zabiegi: r.zabiegi ?? [],
+        gasniceSzt: r.gasnice_szt ?? '', hydranty: r.hydranty ?? false,
+        dataPrzegladuGasnic: r.data_przegladu_gasnic ?? '', sap: r.sap ?? false,
+        tryskacze: r.tryskacze ?? false, drogiEwakuacyjne: r.drogi_ewakuacyjne ?? false,
+        odlegloscPsp: r.odleglosc_psp ?? '', zakazPalenia: r.zakaz_palenia ?? false,
+        alarmTyp: r.alarm_typ ?? 'brak', ogrodzenie: r.ogrodzenie ?? false,
+        agencjaOchrony: r.agencja_ochrony ?? '', agencja24h: r.agencja_24h ?? false,
+        cctv: r.cctv ?? false, kraty: r.kraty ?? false, rolety: r.rolety ?? false,
+        zamkiAtestowane: r.zamki_atestowane ?? false, drzwiAtestowane: r.drzwi_atestowane ?? false,
+        szybyAntywlamaniowe: r.szyby_antywlamaniowe ?? false, sejfKlasa: r.sejf_klasa ?? 'brak',
+        systemAlarmowy: r.system_alarmowy ?? false,
+        zakres: r.zakres ?? [],
+        sumaBudynek: Number(r.suma_budynek ?? 0), sumaWyposazenie: Number(r.suma_wyposazenie ?? 0),
+        sumaMaszyny: Number(r.suma_maszyny ?? 0), sumaSrodkiObrotowe: Number(r.suma_srodki_obrotowe ?? 0),
+        sumaElektronikaIt: Number(r.suma_elektronika_it ?? 0), sumaSprzet: Number(r.suma_sprzet_medyczny ?? 0),
+        sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
+        sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
+        sumaLacznie: Number(r.suma_lacznie ?? 0),
+        brakSzkod: r.brak_szkod ?? true, szkody: r.szkody ?? [],
+        posiadaPolise: r.posiada_polise ?? false, towarzystwoObecne: r.towarzystwo_obecne ?? '',
+        nrPolisyObecny: r.nr_polisy_obecny ?? '', waznoscDo: r.waznosc_do ?? '',
+        rocznaSlkadkaObecna: r.roczna_skladka_obecna ? Number(r.roczna_skladka_obecna) : null,
+        uwagi: r.uwagi ?? '', zgodaPrawdziwosc: r.zgoda_prawdziwosc ?? false, zgodaRodo: r.zgoda_rodo ?? false,
+        sprzet: r.sprzet_medyczny ?? [], elektronika: r.elektronika_eei ?? [],
+        createdAt: r.created_at, updatedAt: r.updated_at,
+      }));
+      set({ mienieWnioski: wnioski, mienieLoading: false });
+    } else {
+      set({ mienieLoading: false });
+    }
+  },
+
+  generateFormToken: async (companyId) => {
+    const token = `${crypto.randomUUID()}-ID${companyId}`;
+    await supabase.from('crm_companies').update({ form_token: token }).eq('id', companyId);
+    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
+    return token;
+  },
+
+  resetFormToken: async (companyId) => {
+    const token = `${crypto.randomUUID()}-ID${companyId}`;
+    await supabase.from('crm_companies').update({ form_token: token }).eq('id', companyId);
+    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
+    return token;
   },
 
   importCompanies: async (rows) => {
