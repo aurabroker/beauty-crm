@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# AuraBeauty CRM
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+System CRM dla branży beauty — zarządzanie firmami, pipeline sprzedażowy, polisy ubezpieczeniowe i kalendarze przypomnień.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **Frontend:** React 19 + TypeScript + Vite
+- **UI:** Radix UI + Tailwind CSS
+- **Stan:** Zustand
+- **Backend / baza:** Supabase (PostgreSQL)
+- **Hosting:** Cloudflare Pages
 
-## React Compiler
+## Funkcje
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Dashboard** — lista firm z filtrowaniem, sortowaniem i wyszukiwaniem
+- **Pipeline** — kanban ze statusami: Lead → Kontakt → Oferta → Negocjacje → Klient / Rezygnacja
+- **Klienci** — widok aktywnych klientów z polisami
+- **Polisy** — zarządzanie ubezpieczeniami przypisanymi do firm (OC, utrata dochodu, ochrona prawna, pakiety zdrowotne)
+- **Kalendarz** — przypomnienia z widokiem tygodniowym/miesięcznym
+- **Raporty** — statystyki sprzedaży, konwersji i aktywności
+- **Admin** — zarządzanie użytkownikami i etapami pipeline
+- **Publiczny formularz leadów** — dostępny pod `/formularz` bez logowania
+- **Import z Google Sheets** — masowy import firm
 
-## Expanding the ESLint configuration
+## Uruchomienie lokalne
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+pnpm install
+pnpm dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+## Zmienne środowiskowe
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+Klient Supabase jest skonfigurowany bezpośrednio w `src/lib/supabase.ts`. W razie potrzeby podmień URL i klucz `anon` na własny projekt.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+## Baza danych
+
+Tabele Supabase:
+
+| Tabela | Opis |
+|--------|------|
+| `crm_companies` | Firmy / kontakty |
+| `crm_history` | Historia kontaktów (notatki, telefony, emaile, spotkania) |
+| `crm_reminders` | Przypomnienia |
+| `crm_policies` | Polisy ubezpieczeniowe |
+| `crm_users` | Użytkownicy CRM |
+| `crm_settings` | Ustawienia (m.in. konfiguracja etapów pipeline) |
+
+## Deployment
+
+```bash
+pnpm build
+# Cloudflare Pages — konfiguracja w wrangler.toml
 ```
