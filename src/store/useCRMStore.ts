@@ -355,7 +355,8 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
         sprzet: loks[0]?.sprzet ?? r.sprzet_medyczny ?? [],
         elektronika: loks[0]?.elektronika ?? r.elektronika_eei ?? [],
         createdAt: r.created_at, updatedAt: r.updated_at,
-      }));
+      });
+      });
       set({ mienieWnioski: wnioski, mienieLokalizacje: lokalizacje, mienieLoading: false });
     } else {
       set({ mienieLoading: false });
