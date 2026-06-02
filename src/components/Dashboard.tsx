@@ -57,24 +57,25 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
 
   // ── Filters ───────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
-    let r = visible;
-    if (search) {
-      const q = search.toLowerCase().trim();
-      r = r.filter(c =>
-        c.company.toLowerCase().includes(q) ||
-        (c.contact ?? '').toLowerCase().includes(q) ||
-        (c.nip ?? '').includes(q) ||
-        (c.phone ?? '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
-        (c.email ?? '').toLowerCase().includes(q) ||
-        (c.city ?? '').toLowerCase().includes(q) ||
-        (c.zainteresowania ?? '').toLowerCase().includes(q)
-      );
+    const q = search.toLowerCase().trim();
+    let r = q
+      ? visible.filter(c =>
+          c.company.toLowerCase().includes(q) ||
+          (c.contact ?? '').toLowerCase().includes(q) ||
+          (c.nip ?? '').includes(q) ||
+          (c.phone ?? '').replace(/\D/g,'').includes(q.replace(/\D/g,'')) ||
+          (c.email ?? '').toLowerCase().includes(q) ||
+          (c.city ?? '').toLowerCase().includes(q) ||
+          (c.zainteresowania ?? '').toLowerCase().includes(q)
+        )
+      : visible;
+    if (!q) {
+      if (filterStatus !== 'all') r = r.filter(c => c.status === filterStatus);
+      if (filterRodzaj !== 'all')  r = r.filter(c => (c.leadSource ?? '').toUpperCase() === filterRodzaj.toUpperCase());
+      if (filterTag === '__none') r = r.filter(c => !c.tag || c.tag.trim() === '');
+      else if (filterTag !== 'all') r = r.filter(c => c.tag === filterTag);
+      if (filterSource !== 'all') r = r.filter(c => (c.leadSource ?? '') === filterSource);
     }
-    if (filterStatus !== 'all') r = r.filter(c => c.status === filterStatus);
-    if (filterRodzaj !== 'all')  r = r.filter(c => (c.tag ?? '').toUpperCase() === filterRodzaj.toUpperCase());
-    if (filterTag === '__none') r = r.filter(c => !c.tag || c.tag.trim() === '');
-    else if (filterTag !== 'all') r = r.filter(c => c.tag === filterTag);
-    if (filterSource !== 'all') r = r.filter(c => (c.leadSource ?? '') === filterSource);
     return [...r].sort((a, b) => {
       if (sortKey === 'employees') {
         const va = parseInt(a.employees||'0')||0, vb = parseInt(b.employees||'0')||0;
