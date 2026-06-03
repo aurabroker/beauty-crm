@@ -113,7 +113,8 @@ export function Clients({ onSelectCompany }: ClientsProps) {
               <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">NIP</th>
               <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">Polisa</th>
               <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">Składka</th>
-              <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">Koniec</th>
+              <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">OD</th>
+              <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">DO</th>
               <th className="text-left px-4 py-3 text-xs font-medium tracking-widest uppercase">Status</th>
             </tr>
           </thead>
@@ -153,7 +154,10 @@ onClick={() => onSelectCompany(c)}
                       : <span className="text-zinc-300 font-normal">—</span>}
                     {mainPolicy?.skladka && <span className="text-xs text-zinc-400 font-normal ml-1">/{mainPolicy.skladkaOkres === 'miesięczna' ? 'mies.' : 'rok'}</span>}
                   </td>
-                  <td className="px-4 py-3 text-sm text-zinc-600">
+                  <td className="px-4 py-3 text-sm font-mono text-zinc-600">
+                    {mainPolicy?.dataOd ? fmtDate(mainPolicy.dataOd) : <span className="text-zinc-300">—</span>}
+                  </td>
+                  <td className="px-4 py-3 text-sm font-mono text-zinc-600">
                     {mainPolicy?.dataDo ? fmtDate(mainPolicy.dataDo) : <span className="text-zinc-300">—</span>}
                   </td>
                   <td className="px-4 py-3">

@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dodaj polisę — Aura Expert CRM</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-100 min-h-screen font-sans">
+
+<div class="max-w-3xl mx-auto py-8 px-4">
+  <!-- Header -->
+  <div class="bg-zinc-900 text-white px-6 py-4 mb-6">
+    <div class="text-[10px] text-zinc-500 uppercase tracking-widest mb-1">Aura Expert CRM</div>
+    <h1 class="text-xl font-bold">🛡️ Nowa polisa</h1>
+    <div id="companyName" class="text-zinc-400 text-sm mt-0.5"></div>
+  </div>
+
+  <!-- Form -->
+  <form id="policyForm" class="bg-white border border-zinc-200 p-6 space-y-4">
+
+    <div class="grid grid-cols-2 gap-4">
+      <div class="col-span-2">
+        <label class="block text-xs text-zinc-500 mb-1">Nr polisy *</label>
+        <input id="nrPolisy" required placeholder="np. POL/2025/001234"
+          class="w-full h-10 border border-zinc-200 px-3 text-sm font-mono focus:outline-none focus:border-zinc-900"/>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Rodzaj ubezpieczenia *</label>
+        <select id="rodzaj" required class="w-full h-10 border border-zinc-200 px-2 text-sm bg-white focus:outline-none focus:border-zinc-900">
+          <option value="">— wybierz —</option>
+          <option>Ubezpieczenie OC</option>
+          <option>Ubezpieczenie utraty dochodu</option>
+          <option>Ochrona karno-skarbowa</option>
+          <option>Pakiety zdrowotne</option>
+          <option>Inne</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Ubezpieczyciel</label>
+        <select id="ubezpieczyciel" class="w-full h-10 border border-zinc-200 px-2 text-sm bg-white focus:outline-none focus:border-zinc-900">
+          <option value="">— wybierz —</option>
+          <option value="PZU S.A.">PZU — PZU S.A.</option>
+          <option value="ERGO Hestia">ERGO — ERGO Hestia</option>
+          <option value="Warta">Warta</option>
+          <option value="Allianz">Allianz</option>
+          <option value="Generali">Generali</option>
+          <option value="UNIQA">UNIQA</option>
+          <option value="Compensa">Compensa</option>
+          <option value="TUW PZUW">PZUW — TUW PZUW</option>
+          <option value="Nationale-Nederlanden">N-N — Nationale-Nederlanden</option>
+          <option value="Signal Iduna">Signal — Signal Iduna</option>
+          <option value="Aviva">Aviva</option>
+          <option value="AXA">AXA</option>
+          <option value="Balcia Insurance">Balcia</option>
+          <option value="Inne">Inne</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Suma ubezpieczenia</label>
+        <div class="flex">
+          <input id="sumaUbezpieczenia" type="number" placeholder="np. 100000"
+            class="flex-1 h-10 border border-zinc-200 border-r-0 px-3 text-sm focus:outline-none focus:border-zinc-900"/>
+          <span class="h-10 px-3 flex items-center text-sm bg-zinc-100 border border-zinc-200 text-zinc-600">PLN</span>
+        </div>
+        <!-- OC quick buttons -->
+        <div id="ocButtons" class="hidden flex gap-1 mt-1">
+          <button type="button" onclick="setSuma('100000')" class="flex-1 h-8 text-xs border-2 border-zinc-300 font-bold hover:border-zinc-900">100 000 zł</button>
+          <button type="button" onclick="setSuma('200000')" class="flex-1 h-8 text-xs border-2 border-zinc-300 font-bold hover:border-zinc-900">200 000 zł</button>
+          <button type="button" onclick="setSuma('300000')" class="flex-1 h-8 text-xs border-2 border-zinc-300 font-bold hover:border-zinc-900">300 000 zł</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Składka (zł)</label>
+        <div class="flex gap-1">
+          <input id="skladka" type="number" placeholder="kwota"
+            class="flex-1 h-10 border border-zinc-200 px-3 text-sm focus:outline-none focus:border-zinc-900"/>
+          <select id="skladkaOkres" onchange="onOkresChange()" class="h-10 text-xs border border-zinc-200 px-1 bg-white focus:outline-none min-w-[110px]">
+            <option value="jednorazowa">jednorazowa</option>
+            <option value="miesięczna">/mies.</option>
+            <option value="kwartalna">/kw.</option>
+            <option value="roczna">/rok</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Ochrona prawna (OC only) -->
+      <div id="ochronaRow" class="col-span-2 hidden">
+        <label class="flex items-center gap-3 p-3 border-2 border-zinc-200 cursor-pointer hover:border-zinc-900">
+          <input type="checkbox" id="ochronaPrawna" class="w-5 h-5 accent-emerald-600"/>
+          <div>
+            <div class="text-sm font-bold">☑ Ochrona prawna — 100 000 zł</div>
+            <div class="text-xs text-zinc-500">Składka roczna: <strong>92 zł</strong></div>
+          </div>
+        </label>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Data OD *</label>
+        <input id="dataOd" type="date" required onchange="onDatesChange()"
+          class="w-full h-10 border border-zinc-200 px-3 text-sm focus:outline-none focus:border-zinc-900"/>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Data DO *</label>
+        <input id="dataDo" type="date" required onchange="onDatesChange()"
+          class="w-full h-10 border border-zinc-200 px-3 text-sm focus:outline-none focus:border-zinc-900"/>
+      </div>
+
+      <!-- Liczba rat (shown when not jednorazowa) -->
+      <div id="ratyRow" class="col-span-2 hidden">
+        <label class="block text-xs text-zinc-500 mb-1">Liczba rat składki</label>
+        <div class="flex gap-1 flex-wrap" id="ratyButtons"></div>
+      </div>
+
+      <!-- Terminy płatności (generated) -->
+      <div id="terminyRow" class="col-span-2 hidden">
+        <label class="block text-xs text-zinc-500 mb-2">Terminy płatności rat</label>
+        <div id="terminyGrid" class="grid grid-cols-3 gap-2"></div>
+      </div>
+
+      <div>
+        <label class="block text-xs text-zinc-500 mb-1">Status</label>
+        <select id="status" class="w-full h-10 border border-zinc-200 px-2 text-sm bg-white focus:outline-none focus:border-zinc-900">
+          <option value="aktywna">Aktywna</option>
+          <option value="wygasła">Wygasła</option>
+          <option value="anulowana">Anulowana</option>
+        </select>
+      </div>
+
+      <div class="col-span-2">
+        <label class="block text-xs text-zinc-500 mb-1">Notatki</label>
+        <textarea id="notes" rows="2"
+          class="w-full border border-zinc-200 px-3 py-2 text-sm focus:outline-none focus:border-zinc-900 resize-none"></textarea>
+      </div>
+    </div>
+
+    <!-- Preview składki -->
+    <div id="skladkaPreview" class="hidden px-4 py-3 bg-emerald-50 border-2 border-emerald-300 text-sm text-emerald-900 font-medium"></div>
+
+    <!-- Przypomnienie -->
+    <div id="reminderPreview" class="hidden px-3 py-2 bg-amber-50 border border-amber-200 text-xs text-amber-800"></div>
+
+    <!-- Buttons -->
+    <div class="flex gap-3 pt-2">
+      <button type="button" onclick="window.close()"
+        class="px-4 py-2 text-sm border border-zinc-200 text-zinc-600 hover:border-zinc-900">Anuluj</button>
+      <button type="submit" id="submitBtn"
+        class="flex-1 py-2 text-sm bg-emerald-600 text-white hover:bg-emerald-700 font-medium disabled:opacity-40">
+        ✓ Dodaj polisę
+      </button>
+    </div>
+  </form>
+
+  <!-- Success -->
+  <div id="successMsg" class="hidden bg-emerald-50 border-2 border-emerald-500 p-6 text-center mt-4">
+    <div class="text-3xl mb-2">✅</div>
+    <div class="text-lg font-bold text-emerald-800">Polisa dodana!</div>
+    <div id="successDetail" class="text-sm text-emerald-700 mt-1"></div>
+    <button onclick="window.close()" class="mt-4 px-4 py-2 bg-zinc-900 text-white text-sm">Zamknij okno</button>
+  </div>
+
+  <!-- Error -->
+  <div id="errorMsg" class="hidden bg-red-50 border border-red-300 p-4 mt-4 text-sm text-red-700"></div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://dhuvykwecsxgchzxufxw.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRodXZ5a3dlY3N4Z2Noenh1Znh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMzAwNzEsImV4cCI6MjA5MjYwNjA3MX0.ooJL1hFIN3Mjb22QEtI7ZFAfSyLM4aGwduGGMykaaHE';
+const H = { 'Content-Type': 'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` };
+
+const params = new URLSearchParams(location.search);
+const COMPANY_ID = parseInt(params.get('companyId') || '0');
+const COMPANY_NAME = params.get('company') || '';
+const USER_NAME = params.get('userName') || '';
+
+document.getElementById('companyName').textContent = COMPANY_NAME;
+
+// Set default dates
+const today = new Date().toISOString().split('T')[0];
+const plus12 = new Date(new Date().setFullYear(new Date().getFullYear()+1)).toISOString().split('T')[0];
+document.getElementById('dataOd').value = today;
+document.getElementById('dataDo').value = plus12;
+
+let liczbaRat = 1;
+
+document.getElementById('rodzaj').addEventListener('change', function() {
+  document.getElementById('ocButtons').classList.toggle('hidden', this.value !== 'Ubezpieczenie OC');
+  document.getElementById('ochronaRow').classList.toggle('hidden', this.value !== 'Ubezpieczenie OC');
+  updatePreview();
+});
+
+document.getElementById('skladka').addEventListener('input', updatePreview);
+document.getElementById('ochronaPrawna').addEventListener('change', updatePreview);
+document.getElementById('dataDo').addEventListener('input', updateReminder);
+
+function setSuma(v) {
+  document.getElementById('sumaUbezpieczenia').value = v;
+}
+
+function onOkresChange() {
+  const okres = document.getElementById('skladkaOkres').value;
+  const show = okres !== 'jednorazowa';
+  document.getElementById('ratyRow').classList.toggle('hidden', !show);
+  if (!show) { liczbaRat = 1; updateTerminy(); }
+  else renderRatyButtons();
+}
+
+function renderRatyButtons() {
+  const container = document.getElementById('ratyButtons');
+  container.innerHTML = '';
+  [1,2,3,4,6,12].forEach(n => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.textContent = n === 1 ? 'jednorazowo' : `${n} rat`;
+    btn.className = `px-3 h-9 text-sm border-2 font-bold transition-colors ${n === liczbaRat ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-700 hover:border-zinc-900'}`;
+    btn.onclick = () => { liczbaRat = n; renderRatyButtons(); updateTerminy(); };
+    container.appendChild(btn);
+  });
+}
+
+function onDatesChange() { updateTerminy(); updateReminder(); }
+
+function calcTerminy(od, doo, n) {
+  if (!od || !doo || n <= 1) return [];
+  const start = new Date(od).getTime();
+  const end   = new Date(doo).getTime();
+  const step  = (end - start) / n;
+  return Array.from({ length: n }, (_, i) => new Date(start + i * step).toISOString().split('T')[0]);
+}
+
+let terminyValues = [];
+
+function updateTerminy() {
+  const od  = document.getElementById('dataOd').value;
+  const doo = document.getElementById('dataDo').value;
+  terminyValues = calcTerminy(od, doo, liczbaRat);
+  const row = document.getElementById('terminyRow');
+  const grid = document.getElementById('terminyGrid');
+  if (terminyValues.length < 2) { row.classList.add('hidden'); return; }
+  row.classList.remove('hidden');
+  grid.innerHTML = '';
+  terminyValues.forEach((t, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'flex items-center gap-1';
+    wrap.innerHTML = `<span class="text-xs text-zinc-500 w-5 flex-shrink-0">${i+1}.</span>
+      <input type="date" value="${t}" class="flex-1 h-8 text-xs border border-zinc-200 px-2 focus:outline-none focus:border-zinc-900"/>`;
+    wrap.querySelector('input').addEventListener('change', e => { terminyValues[i] = e.target.value; });
+    grid.appendChild(wrap);
+  });
+}
+
+function updatePreview() {
+  const skladka = parseFloat(document.getElementById('skladka').value) || 0;
+  const op = document.getElementById('ochronaPrawna').checked ? 92 : 0;
+  const total = skladka + op;
+  const el = document.getElementById('skladkaPreview');
+  if (total > 0) {
+    el.classList.remove('hidden');
+    el.innerHTML = `💰 Łączna składka: <strong class="text-lg">${total.toLocaleString('pl-PL')} zł</strong>${op > 0 && skladka > 0 ? ` <span class="text-xs font-normal">(${skladka.toLocaleString('pl-PL')} polisa + 92 ochrona prawna)</span>` : ''}`;
+  } else { el.classList.add('hidden'); }
+}
+
+function updateReminder() {
+  const dataDo = document.getElementById('dataDo').value;
+  if (!dataDo) return;
+  const d = new Date(dataDo);
+  d.setDate(d.getDate() - 45);
+  const rem = d.toISOString().split('T')[0];
+  const el = document.getElementById('reminderPreview');
+  el.classList.remove('hidden');
+  el.innerHTML = `📅 Przypomnienie do kalendarza: <strong>${new Date(rem).toLocaleDateString('pl-PL')}</strong> (45 dni przed końcem)`;
+}
+
+updateReminder();
+
+document.getElementById('policyForm').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Zapisuję...';
+  document.getElementById('errorMsg').classList.add('hidden');
+
+  const dataDo = document.getElementById('dataDo').value;
+  const dataOd = document.getElementById('dataOd').value;
+  const rappomnienie = (() => {
+    if (!dataDo) return null;
+    const d = new Date(dataDo); d.setDate(d.getDate()-45);
+    return d.toISOString().split('T')[0];
+  })();
+
+  const sumaRaw = document.getElementById('sumaUbezpieczenia').value.trim();
+  const sumaNum = parseFloat(sumaRaw);
+  const suma = sumaRaw ? (isNaN(sumaNum) ? sumaRaw : sumaNum.toLocaleString('pl-PL') + ' PLN') : '';
+
+  const body = {
+    company_id: COMPANY_ID,
+    nr_polisy: document.getElementById('nrPolisy').value.trim(),
+    rodzaj: document.getElementById('rodzaj').value,
+    ubezpieczyciel: document.getElementById('ubezpieczyciel').value,
+    suma_ubezpieczenia: suma,
+    skladka: parseFloat(document.getElementById('skladka').value) || null,
+    skladka_okres: document.getElementById('skladkaOkres').value,
+    terminy_platnosci: terminyValues.length > 1 ? terminyValues : [],
+    data_od: dataOd || null,
+    data_do: dataDo || null,
+    przypomnienie: rappomnienie,
+    ochrona_prawna: document.getElementById('ochronaPrawna').checked,
+    status: document.getElementById('status').value,
+    notes: document.getElementById('notes').value.trim(),
+    created_by: USER_NAME,
+  };
+
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/crm_policies`, {
+      method: 'POST', headers: { ...H, Prefer: 'return=representation' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || data.details || JSON.stringify(data));
+
+    const policyId = data[0]?.id;
+
+    // Update company status to zamkniety
+    await fetch(`${SUPABASE_URL}/rest/v1/crm_companies?id=eq.${COMPANY_ID}`, {
+      method: 'PATCH', headers: H, body: JSON.stringify({ status: 'zamkniety' }),
+    });
+
+    // Add reminder
+    if (rappomnienie && policyId) {
+      const nrPolisy = body.nr_polisy ? `(${body.nr_polisy}) ` : '';
+      const reminderText = `🛡️ Odnowienie polisy ${nrPolisy}: ${body.rodzaj} — kończy się ${dataDo ? new Date(dataDo).toLocaleDateString('pl-PL') : '?'}`;
+      await fetch(`${SUPABASE_URL}/rest/v1/crm_reminders`, {
+        method: 'POST', headers: H,
+        body: JSON.stringify({ id: crypto.randomUUID(), company_id: COMPANY_ID, text: reminderText, date: `${rappomnienie}T09:00:00`, done: false }),
+      });
+    }
+
+    document.getElementById('policyForm').classList.add('hidden');
+    document.getElementById('successMsg').classList.remove('hidden');
+    document.getElementById('successDetail').textContent = `${body.rodzaj} · ${COMPANY_NAME}`;
+
+    // Notify opener to refresh
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.location.reload(); } catch(_) {}
+    }
+  } catch (err) {
+    const el = document.getElementById('errorMsg');
+    el.classList.remove('hidden');
+    el.textContent = `Błąd: ${err.message}`;
+    btn.disabled = false;
+    btn.textContent = '✓ Dodaj polisę';
+  }
+});
+</script>
+</body>
+</html>

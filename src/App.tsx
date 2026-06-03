@@ -170,7 +170,7 @@ function CRMApp() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-hidden p-5" onClick={() => showUserMenu && setShowUserMenu(false)}>
+      <main className="flex-1 overflow-hidden p-2" onClick={() => showUserMenu && setShowUserMenu(false)}>
         {view === 'home'      && <Home onSelectCompany={setSelectedCompany}/>}
         {view === 'dashboard' && <Dashboard onSelectCompany={setSelectedCompany}/>}
         {view === 'pipeline'  && <Pipeline onSelectCompany={setSelectedCompany}/>}

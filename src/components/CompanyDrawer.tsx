@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useCRMStore } from '../store/useCRMStore';
 import type { Company, ContactHistory } from '../data/companies';
-import { RODZAJE_UBEZPIECZEN, TAGI_ZADANIOWE } from '../data/companies';
+import { RODZAJE_UBEZPIECZEN, UBEZPIECZYCIELE, TAGI_ZADANIOWE } from '../data/companies';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -17,6 +17,16 @@ function fmtDate(s: string) { if (!s) return '—'; return new Date(s).toLocaleD
 function fmtDT(s: string)   { if (!s) return '—'; return new Date(s).toLocaleDateString('pl-PL', { day:'2-digit', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
 function calcReminder(d: string): string { if (!d) return ''; const dt = new Date(d); dt.setDate(dt.getDate()-45); return dt.toISOString().split('T')[0]; }
 function daysLeft(d: string): number { return Math.ceil((new Date(d).getTime() - Date.now()) / 86400000); }
+function calcTerminy(dataOd: string, dataDo: string, n: number): string[] {
+  if (!dataOd || !dataDo || n <= 1) return [];
+  const start = new Date(dataOd).getTime();
+  const end   = new Date(dataDo).getTime();
+  const step  = (end - start) / n;
+  return Array.from({ length: n }, (_, i) => new Date(start + i * step).toISOString().split('T')[0]);
+}
+function ubSkrot(nazwa: string): string {
+  return UBEZPIECZYCIELE.find(u => u.nazwa === nazwa)?.skrot ?? nazwa;
+}
 function today12m(): { today: string; plus12: string } {
   const t = new Date(); const p = new Date(); p.setFullYear(p.getFullYear()+1);
   return { today: t.toISOString().split('T')[0], plus12: p.toISOString().split('T')[0] };
@@ -43,7 +53,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
   const [saving, setSaving] = useState(false);
 
   const { today, plus12 } = today12m();
-  const emptyForm = () => ({ nrPolisy:'', rodzaj:'', sumaUbezpieczenia:'', skladka:'', skladkaOkres:'jednorazowa' as 'jednorazowa'|'miesięczna'|'kwartalna'|'roczna', dataOd: today, dataDo: plus12, status:'aktywna' as 'aktywna'|'wygasła'|'anulowana', notes:'', ochronaPrawna: false });
+  const emptyForm = () => ({ nrPolisy:'', rodzaj:'', ubezpieczyciel:'', sumaUbezpieczenia:'', skladka:'', skladkaOkres:'jednorazowa' as 'jednorazowa'|'miesięczna'|'kwartalna'|'roczna', liczbaRat: 1, terminyPlatnosci: [] as string[], dataOd: today, dataDo: plus12, status:'aktywna' as 'aktywna'|'wygasła'|'anulowana', notes:'', ochronaPrawna: false });
   const [policyForm, setPolicyForm] = useState(emptyForm());
 
   const activePolicies = company.policies.filter(p => p.status === 'aktywna');
@@ -64,11 +74,16 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
   const startEdit = (policyId: string) => {
     const p = company.policies.find(p => p.id === policyId);
     if (!p) return;
+    const tp = p.terminyPlatnosci ?? [];
     setPolicyForm({
-      nrPolisy: p.nrPolisy, rodzaj: p.rodzaj, ochronaPrawna: p.ochronaPrawna ?? false,
+      nrPolisy: p.nrPolisy, rodzaj: p.rodzaj, ubezpieczyciel: p.ubezpieczyciel ?? '',
+      ochronaPrawna: p.ochronaPrawna ?? false,
       sumaUbezpieczenia: p.sumaUbezpieczenia.replace(/[^\d]/g,''),
       skladka: p.skladka?.toString() ?? '',
-      skladkaOkres: p.skladkaOkres, dataOd: p.dataOd?.slice(0,10) ?? '',
+      skladkaOkres: p.skladkaOkres,
+      liczbaRat: tp.length > 1 ? tp.length : 1,
+      terminyPlatnosci: tp,
+      dataOd: p.dataOd?.slice(0,10) ?? '',
       dataDo: p.dataDo?.slice(0,10) ?? '', status: p.status, notes: p.notes,
     });
     setEditingPolicyId(policyId);
@@ -80,6 +95,8 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
     setSaving(true);
     const data = {
       nrPolisy: policyForm.nrPolisy, rodzaj: policyForm.rodzaj,
+      ubezpieczyciel: policyForm.ubezpieczyciel,
+      terminyPlatnosci: policyForm.terminyPlatnosci,
       sumaUbezpieczenia: (() => {
         const raw = policyForm.sumaUbezpieczenia.trim();
         if (!raw) return '';
@@ -333,6 +350,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                           <div>
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-zinc-900">{p.rodzaj}</span>
+                              {p.ubezpieczyciel && <span className="text-xs font-bold bg-zinc-900 text-white px-2 py-0.5">{ubSkrot(p.ubezpieczyciel)}</span>}
                               {p.nrPolisy && <span className="text-xs font-mono bg-zinc-100 text-zinc-600 px-2 py-0.5 border border-zinc-200">#{p.nrPolisy}</span>}
                               <span className={`text-xs px-2 py-0.5 font-medium ${p.status==='aktywna' ? 'bg-emerald-100 text-emerald-700' : p.status==='wygasła' ? 'bg-red-100 text-red-700' : 'bg-zinc-100 text-zinc-500'}`}>{p.status}</span>
                             </div>
@@ -343,7 +361,7 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                             <button onClick={() => deletePolicy(p.id, company.id)} className="text-xs px-2 py-1 border border-red-200 text-red-500 hover:bg-red-600 hover:text-white transition-colors">Usuń</button>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-3 text-sm mb-3">
+                        <div className="grid grid-cols-4 gap-3 text-sm mb-3">
                           <div>
                             <div className="text-xs text-zinc-400 mb-0.5">Suma ubezpieczenia</div>
                             <div className="font-mono font-semibold text-zinc-900">{p.sumaUbezpieczenia || '—'}</div>
@@ -352,15 +370,25 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                             <div className="text-xs text-zinc-400 mb-0.5">Składka</div>
                             <div className="font-mono font-semibold text-zinc-900">
                               {p.skladka ? `${(p.skladka + (p.ochronaPrawna ? 92 : 0)).toLocaleString('pl-PL')} zł` : '—'}
-                              <span className="text-xs text-zinc-400 font-normal ml-1">{p.skladkaOkres === 'jednorazowa' ? '(jednorazowa)' : `/${p.skladkaOkres === 'miesięczna' ? 'mies.' : p.skladkaOkres === 'kwartalna' ? 'kw.' : 'rok'}`}</span>
-                              {p.ochronaPrawna && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 ml-1">+ochrona 92zł</span>}
+                              <span className="text-xs text-zinc-400 font-normal ml-1">{p.skladkaOkres === 'jednorazowa' ? '(jed.)' : `/${p.skladkaOkres === 'miesięczna' ? 'mies.' : p.skladkaOkres === 'kwartalna' ? 'kw.' : 'rok'}`}</span>
+                              {p.ochronaPrawna && <span className="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 ml-1">+OP</span>}
                             </div>
                           </div>
                           <div>
-                            <div className="text-xs text-zinc-400 mb-0.5">Okres</div>
-                            <div className="text-zinc-700">{fmtDate(p.dataOd)} — {fmtDate(p.dataDo)}</div>
+                            <div className="text-xs text-zinc-400 mb-0.5">OD</div>
+                            <div className="text-zinc-700 font-mono text-xs">{fmtDate(p.dataOd)}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-zinc-400 mb-0.5">DO</div>
+                            <div className="text-zinc-700 font-mono text-xs">{fmtDate(p.dataDo)}</div>
                           </div>
                         </div>
+                        {p.terminyPlatnosci && p.terminyPlatnosci.length > 1 && (
+                          <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 text-xs">
+                            <span className="font-bold text-blue-800 mr-2">💳 Terminy płatności ({p.terminyPlatnosci.length} rat):</span>
+                            <span className="text-blue-700">{p.terminyPlatnosci.map((t, i) => `${i+1}. ${fmtDate(t)}`).join('  ·  ')}</span>
+                          </div>
+                        )}
                         <div className={`text-xs px-3 py-2 ${expired ? 'bg-red-100 text-red-700' : expiring ? 'bg-amber-100 text-amber-700' : 'bg-zinc-50 text-zinc-500'}`}>
                           {expired ? `⚠️ Polisa wygasła ${fmtDate(p.dataDo)} (${Math.abs(days!)} dni temu)`
                            : expiring ? `🔔 Wygasa za ${days} dni — przypomnienie: ${fmtDate(p.przypomnienie)}`
@@ -377,99 +405,11 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
               )}
 
               {/* Add / Edit form */}
-              {showPolicyForm ? (
+              {showPolicyForm && editingPolicyId ? (
+                /* EDYCJA — inline */
                 <div className="border border-zinc-200 p-5 bg-zinc-50">
-                  <div className="text-xs font-bold text-zinc-900 uppercase tracking-widest mb-4">
-                    {editingPolicyId ? '✏️ Edytuj polisę' : '🛡️ Nowa polisa'} — {company.company}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mb-3">
-                    <div className="col-span-2">
-                      <Lbl>Nr polisy *</Lbl>
-                      <Input value={policyForm.nrPolisy} onChange={e => setPolicyForm(p => ({...p, nrPolisy: e.target.value}))}
-                        placeholder="np. POL/2025/001234" className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 font-mono"/>
-                    </div>
-                    <div className="col-span-2">
-                      <Lbl>Rodzaj ubezpieczenia *</Lbl>
-                      <select value={policyForm.rodzaj} onChange={e => setPolicyForm(p => ({...p, rodzaj: e.target.value}))}
-                        className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
-                        <option value="">— wybierz —</option>
-                        {RODZAJE_UBEZPIECZEN.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <Lbl>Suma ubezpieczenia</Lbl>
-                      {policyForm.rodzaj === 'Ubezpieczenie OC' ? (
-                        <div className="flex gap-2">
-                          {['100 000','200 000','300 000'].map(v => (
-                            <button key={v} type="button"
-                              onClick={() => setPolicyForm(p => ({...p, sumaUbezpieczenia: v}))}
-                              className={`flex-1 h-9 text-sm border-2 font-bold transition-colors ${policyForm.sumaUbezpieczenia===v ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-700 hover:border-zinc-900'}`}>
-                              {v} zł
-                            </button>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="flex">
-                          <Input value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
-                            placeholder="np. 500000" type="number"
-                            className="flex-1 h-9 text-sm rounded-none border-zinc-200 border-r-0 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                          <span className="h-9 px-3 flex items-center text-sm font-medium bg-zinc-100 border border-zinc-200 text-zinc-600 select-none">PLN</span>
-                        </div>
-                      )}
-                    </div>
-                    {policyForm.rodzaj === 'Pakiety zdrowotne' && (
-                      <div className="col-span-2 mt-1">
-                        <Lbl>Dostawca</Lbl>
-                        <select value={policyForm.sumaUbezpieczenia} onChange={e => setPolicyForm(p => ({...p, sumaUbezpieczenia: e.target.value}))}
-                          className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900 font-medium">
-                          <option value="">— wybierz dostawcę —</option>
-                          {['ENEL-MED','LUX MED','SALTUS','WARTA','Medicover','Allianz'].map(d => (
-                            <option key={d} value={d}>{d}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    <div>
-                      <Lbl>Składka</Lbl>
-                      <div className="flex gap-1">
-                        <Input value={policyForm.skladka} onChange={e => setPolicyForm(p => ({...p, skladka: e.target.value}))}
-                          placeholder="kwota zł" type="number"
-                          className="flex-1 h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                        <select value={policyForm.skladkaOkres} onChange={e => setPolicyForm(p => ({...p, skladkaOkres: e.target.value as typeof p.skladkaOkres}))}
-                          className="h-9 text-xs border border-zinc-200 px-1 bg-white focus:outline-none min-w-[100px]">
-                          <option value="jednorazowa">jednorazowa</option>
-                          <option value="miesięczna">/mies.</option>
-                          <option value="kwartalna">/kw.</option>
-                          <option value="roczna">/rok</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div>
-                      <Lbl>Data rozpoczęcia</Lbl>
-                      <Input type="date" value={policyForm.dataOd} onChange={e => setPolicyForm(p => ({...p, dataOd: e.target.value}))}
-                        className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                    </div>
-                    <div>
-                      <Lbl>Data zakończenia</Lbl>
-                      <Input type="date" value={policyForm.dataDo} onChange={e => setPolicyForm(p => ({...p, dataDo: e.target.value}))}
-                        className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
-                    </div>
-                    <div>
-                      <Lbl>Status polisy</Lbl>
-                      <select value={policyForm.status} onChange={e => setPolicyForm(p => ({...p, status: e.target.value as typeof p.status}))}
-                        className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
-                        <option value="aktywna">Aktywna</option>
-                        <option value="wygasła">Wygasła</option>
-                        <option value="anulowana">Anulowana</option>
-                      </select>
-                    </div>
-                    <div className="col-span-2">
-                      <Lbl>Notatki</Lbl>
-                      <Textarea value={policyForm.notes} onChange={e => setPolicyForm(p => ({...p, notes: e.target.value}))}
-                        rows={2} className="text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 resize-none"/>
-                    </div>
-                  </div>
-                  {/* Ochrona prawna — tylko dla OC */}
+                  <div className="text-xs font-bold text-zinc-900 uppercase tracking-widest mb-4">✏️ Edytuj polisę — {company.company}</div>
+                  <PolicyFormFields form={policyForm} setForm={setPolicyForm} />
                   {policyForm.rodzaj === 'Ubezpieczenie OC' && (
                     <div className="mb-3">
                       <label className="flex items-center gap-3 p-3 border-2 cursor-pointer transition-colors hover:border-zinc-900 border-zinc-200 bg-zinc-50">
@@ -478,43 +418,38 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
                           className="w-5 h-5 accent-emerald-600 flex-shrink-0"/>
                         <div className="flex-1">
                           <div className="text-sm font-bold text-zinc-900">☑ Ochrona prawna — 100 000 zł</div>
-                          <div className="text-xs text-zinc-500 mt-0.5">Składka roczna: <strong className="text-zinc-700">92 zł</strong> — doliczana do sumy składki</div>
+                          <div className="text-xs text-zinc-500 mt-0.5">Składka roczna: <strong className="text-zinc-700">92 zł</strong></div>
                         </div>
                         {policyForm.ochronaPrawna && <span className="text-sm font-bold bg-emerald-100 text-emerald-700 px-2 py-1">+ 92 zł</span>}
                       </label>
                     </div>
                   )}
-                  {/* Łączna składka preview */}
                   {(Number(policyForm.skladka) > 0 || policyForm.ochronaPrawna) && (
                     <div className="mb-3 px-4 py-3 bg-emerald-50 border-2 border-emerald-300 text-sm text-emerald-900 font-medium">
-                      💰 Łączna składka:{' '}
-                      <strong className="text-lg">
-                        {(Number(policyForm.skladka||0) + (policyForm.ochronaPrawna ? 92 : 0)).toLocaleString('pl-PL')} zł
-                      </strong>
-                      {policyForm.ochronaPrawna && Number(policyForm.skladka) > 0 && (
-                        <span className="text-xs text-emerald-600 ml-2 font-normal">
-                          ({Number(policyForm.skladka).toLocaleString('pl-PL')} polisa + 92 ochrona prawna)
-                        </span>
-                      )}
+                      💰 Łączna składka: <strong className="text-lg">{(Number(policyForm.skladka||0)+(policyForm.ochronaPrawna?92:0)).toLocaleString('pl-PL')} zł</strong>
                     </div>
                   )}
-                  {!editingPolicyId && reminderPreview && (
+                  {reminderPreview && (
                     <div className="mb-4 px-3 py-2 bg-amber-50 border border-amber-200 text-xs text-amber-800">
-                      📅 Przypomnienie do kalendarza: <strong>{fmtDate(reminderPreview)}</strong> (45 dni przed końcem)
+                      📅 Przypomnienie: <strong>{fmtDate(reminderPreview)}</strong> (45 dni przed końcem)
                     </div>
                   )}
                   <div className="flex gap-2 justify-end">
                     <button onClick={cancelForm} className="px-4 py-2 text-sm border border-zinc-200 text-zinc-600 hover:border-zinc-900">Anuluj</button>
                     <button onClick={handleSavePolicy} disabled={!policyForm.nrPolisy || !policyForm.rodzaj || saving}
                       className="px-4 py-2 text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 font-medium">
-                      {saving ? 'Zapisuję...' : editingPolicyId ? '✓ Zapisz zmiany' : '✓ Dodaj polisę'}
+                      {saving ? 'Zapisuję...' : '✓ Zapisz zmiany'}
                     </button>
                   </div>
                 </div>
               ) : (
-                <button onClick={() => { setPolicyForm(emptyForm()); setShowPolicyForm(true); }}
-                  className="w-full py-3 border-2 border-dashed border-zinc-200 text-zinc-500 hover:border-zinc-900 hover:text-zinc-900 transition-colors text-sm font-medium">
-                  + Dodaj polisę
+                <button
+                  onClick={() => {
+                    const url = `${window.location.origin}/dodaj-polise.html?companyId=${company.id}&company=${encodeURIComponent(company.company)}&userName=${encodeURIComponent(currentUser?.name ?? '')}`;
+                    window.open(url, '_blank');
+                  }}
+                  className="w-full py-3 border-2 border-dashed border-zinc-200 text-zinc-500 hover:border-emerald-600 hover:text-emerald-700 transition-colors text-sm font-medium">
+                  + Dodaj polisę ↗
                 </button>
               )}
               {company.policies.length === 0 && !showPolicyForm && (
@@ -739,6 +674,140 @@ export function CompanyDrawer({ company, onClose }: { company: Company; onClose:
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function PolicyFormFields({ form, setForm }: { form: any; setForm: (fn: (p: any) => any) => void }) {
+  const handleRaty = (n: number) => {
+    const terminy = n > 1 ? calcTerminy(form.dataOd, form.dataDo, n) : [];
+    setForm((p: typeof form) => ({ ...p, liczbaRat: n, terminyPlatnosci: terminy }));
+  };
+  const handleDateChange = (field: 'dataOd' | 'dataDo', val: string) => {
+    setForm((p: typeof form) => {
+      const updated = { ...p, [field]: val };
+      const terminy = updated.liczbaRat > 1 ? calcTerminy(updated.dataOd, updated.dataDo, updated.liczbaRat) : [];
+      return { ...updated, terminyPlatnosci: terminy };
+    });
+  };
+  return (
+    <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="col-span-2">
+        <Lbl>Nr polisy *</Lbl>
+        <Input value={form.nrPolisy} onChange={e => setForm((p: typeof form) => ({...p, nrPolisy: e.target.value}))}
+          placeholder="np. POL/2025/001234" className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 font-mono"/>
+      </div>
+      <div>
+        <Lbl>Rodzaj ubezpieczenia *</Lbl>
+        <select value={form.rodzaj} onChange={e => setForm((p: typeof form) => ({...p, rodzaj: e.target.value}))}
+          className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
+          <option value="">— wybierz —</option>
+          {RODZAJE_UBEZPIECZEN.map(r => <option key={r} value={r}>{r}</option>)}
+        </select>
+      </div>
+      <div>
+        <Lbl>Ubezpieczyciel</Lbl>
+        <select value={form.ubezpieczyciel} onChange={e => setForm((p: typeof form) => ({...p, ubezpieczyciel: e.target.value}))}
+          className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
+          <option value="">— wybierz —</option>
+          {UBEZPIECZYCIELE.map(u => (
+            <option key={u.nazwa} value={u.nazwa}>{u.skrot} — {u.nazwa}</option>
+          ))}
+        </select>
+      </div>
+      <div>
+        <Lbl>Suma ubezpieczenia</Lbl>
+        {form.rodzaj === 'Ubezpieczenie OC' ? (
+          <div className="flex gap-1">
+            {['100 000','200 000','300 000'].map(v => (
+              <button key={v} type="button"
+                onClick={() => setForm((p: typeof form) => ({...p, sumaUbezpieczenia: v}))}
+                className={`flex-1 h-9 text-xs border-2 font-bold transition-colors ${form.sumaUbezpieczenia===v ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-700 hover:border-zinc-900'}`}>
+                {v} zł
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className="flex">
+            <Input value={form.sumaUbezpieczenia} onChange={e => setForm((p: typeof form) => ({...p, sumaUbezpieczenia: e.target.value}))}
+              placeholder="np. 500000" type="number"
+              className="flex-1 h-9 text-sm rounded-none border-zinc-200 border-r-0 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+            <span className="h-9 px-3 flex items-center text-sm font-medium bg-zinc-100 border border-zinc-200 text-zinc-600 select-none">PLN</span>
+          </div>
+        )}
+      </div>
+      <div>
+        <Lbl>Składka</Lbl>
+        <div className="flex gap-1">
+          <Input value={form.skladka} onChange={e => setForm((p: typeof form) => ({...p, skladka: e.target.value}))}
+            placeholder="kwota zł" type="number"
+            className="flex-1 h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+          <select value={form.skladkaOkres} onChange={e => setForm((p: typeof form) => ({...p, skladkaOkres: e.target.value}))}
+            className="h-9 text-xs border border-zinc-200 px-1 bg-white focus:outline-none min-w-[100px]">
+            <option value="jednorazowa">jednorazowa</option>
+            <option value="miesięczna">/mies.</option>
+            <option value="kwartalna">/kw.</option>
+            <option value="roczna">/rok</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <Lbl>Data OD</Lbl>
+        <Input type="date" value={form.dataOd} onChange={e => handleDateChange('dataOd', e.target.value)}
+          className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+      </div>
+      <div>
+        <Lbl>Data DO</Lbl>
+        <Input type="date" value={form.dataDo} onChange={e => handleDateChange('dataDo', e.target.value)}
+          className="h-9 text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+      </div>
+      {form.skladkaOkres !== 'jednorazowa' && (
+        <div className="col-span-2">
+          <Lbl>Liczba rat składki</Lbl>
+          <div className="flex gap-1 flex-wrap">
+            {[1,2,3,4,6,12].map(n => (
+              <button key={n} type="button" onClick={() => handleRaty(n)}
+                className={`px-3 h-9 text-sm border-2 font-bold transition-colors ${form.liczbaRat===n ? 'bg-zinc-900 text-white border-zinc-900' : 'border-zinc-300 text-zinc-700 hover:border-zinc-900'}`}>
+                {n === 1 ? 'jednorazowo' : `${n} rat`}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {form.terminyPlatnosci.length > 1 && (
+        <div className="col-span-2">
+          <Lbl>Terminy płatności rat</Lbl>
+          <div className="grid grid-cols-3 gap-2">
+            {form.terminyPlatnosci.map((t: string, i: number) => (
+              <div key={i} className="flex items-center gap-1">
+                <span className="text-xs text-zinc-500 w-5 flex-shrink-0">{i+1}.</span>
+                <Input type="date" value={t}
+                  onChange={e => {
+                    const arr = [...form.terminyPlatnosci];
+                    arr[i] = e.target.value;
+                    setForm((p: typeof form) => ({ ...p, terminyPlatnosci: arr }));
+                  }}
+                  className="h-8 text-xs rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900"/>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      <div>
+        <Lbl>Status polisy</Lbl>
+        <select value={form.status} onChange={e => setForm((p: typeof form) => ({...p, status: e.target.value}))}
+          className="w-full h-9 text-sm border border-zinc-200 px-2 bg-white focus:outline-none focus:border-zinc-900">
+          <option value="aktywna">Aktywna</option>
+          <option value="wygasła">Wygasła</option>
+          <option value="anulowana">Anulowana</option>
+        </select>
+      </div>
+      <div className="col-span-2">
+        <Lbl>Notatki</Lbl>
+        <Textarea value={form.notes} onChange={e => setForm((p: typeof form) => ({...p, notes: e.target.value}))}
+          rows={2} className="text-sm rounded-none border-zinc-200 focus-visible:ring-0 focus-visible:border-zinc-900 resize-none"/>
       </div>
     </div>
   );

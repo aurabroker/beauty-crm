@@ -12,9 +12,11 @@ export interface Policy {
   companyId: number;
   nrPolisy: string;
   rodzaj: string;
+  ubezpieczyciel: string;
   sumaUbezpieczenia: string;
   skladka: number | null;
   skladkaOkres: 'miesięczna' | 'kwartalna' | 'roczna' | 'jednorazowa';
+  terminyPlatnosci: string[];
   dataOd: string;
   dataDo: string;
   przypomnienie: string;
@@ -24,6 +26,28 @@ export interface Policy {
   createdAt: string;
   createdBy: string;
 }
+
+export interface Ubezpieczyciel {
+  nazwa: string;
+  skrot: string;
+}
+
+export const UBEZPIECZYCIELE: Ubezpieczyciel[] = [
+  { nazwa: 'PZU S.A.',                  skrot: 'PZU'      },
+  { nazwa: 'ERGO Hestia',               skrot: 'ERGO'     },
+  { nazwa: 'Warta',                     skrot: 'Warta'    },
+  { nazwa: 'Allianz',                   skrot: 'Allianz'  },
+  { nazwa: 'Generali',                  skrot: 'Generali' },
+  { nazwa: 'UNIQA',                     skrot: 'UNIQA'    },
+  { nazwa: 'Compensa',                  skrot: 'Compensa' },
+  { nazwa: 'TUW PZUW',                  skrot: 'PZUW'     },
+  { nazwa: 'Nationale-Nederlanden',     skrot: 'N-N'      },
+  { nazwa: 'Signal Iduna',              skrot: 'Signal'   },
+  { nazwa: 'Aviva',                     skrot: 'Aviva'    },
+  { nazwa: 'AXA',                       skrot: 'AXA'      },
+  { nazwa: 'Balcia Insurance',          skrot: 'Balcia'   },
+  { nazwa: 'Inne',                      skrot: 'Inne'     },
+];
 export interface CRMUser {
   id: string; name: string; email: string; role: 'admin'|'user'; color: string; active: boolean;
 }

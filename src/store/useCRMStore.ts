@@ -39,9 +39,11 @@ function dbRowToPolicy(row: Record<string,unknown>): Policy {
     companyId: row.company_id as number,
     nrPolisy: (row.nr_polisy as string) ?? '',
     rodzaj: (row.rodzaj as string) ?? '',
+    ubezpieczyciel: (row.ubezpieczyciel as string) ?? '',
     sumaUbezpieczenia: (row.suma_ubezpieczenia as string) ?? '',
     skladka: row.skladka != null ? Number(row.skladka) : null,
     skladkaOkres: ((row.skladka_okres as string) ?? 'jednorazowa') as Policy['skladkaOkres'],
+    terminyPlatnosci: Array.isArray(row.terminy_platnosci) ? row.terminy_platnosci as string[] : [],
     dataOd: (row.data_od as string) ?? '',
     dataDo: (row.data_do as string) ?? '',
     przypomnienie: (row.przypomnienie as string) ?? '',
@@ -189,9 +191,11 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       company_id: companyId,
       nr_polisy: policyData.nrPolisy,
       rodzaj: policyData.rodzaj,
+      ubezpieczyciel: policyData.ubezpieczyciel ?? '',
       suma_ubezpieczenia: policyData.sumaUbezpieczenia,
       skladka: policyData.skladka,
       skladka_okres: policyData.skladkaOkres,
+      terminy_platnosci: policyData.terminyPlatnosci ?? [],
       data_od: policyData.dataOd || null,
       data_do: policyData.dataDo || null,
       przypomnienie: przypomnienie || null,
@@ -221,9 +225,11 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     const dbData: Record<string,unknown> = {};
     if (data.nrPolisy !== undefined) dbData.nr_polisy = data.nrPolisy;
     if (data.rodzaj !== undefined) dbData.rodzaj = data.rodzaj;
+    if (data.ubezpieczyciel !== undefined) dbData.ubezpieczyciel = data.ubezpieczyciel;
     if (data.sumaUbezpieczenia !== undefined) dbData.suma_ubezpieczenia = data.sumaUbezpieczenia;
     if (data.skladka !== undefined) dbData.skladka = data.skladka;
     if (data.skladkaOkres !== undefined) dbData.skladka_okres = data.skladkaOkres;
+    if (data.terminyPlatnosci !== undefined) dbData.terminy_platnosci = data.terminyPlatnosci;
     if (data.dataOd !== undefined) dbData.data_od = data.dataOd;
     if (data.dataDo !== undefined) { dbData.data_do = data.dataDo; dbData.przypomnienie = calcReminderDate(data.dataDo); }
     if (data.ochronaPrawna !== undefined) dbData.ochrona_prawna = data.ochronaPrawna;
