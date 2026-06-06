@@ -38,12 +38,13 @@ export function LeadForm() {
       ubezpieczenie: form.ubezpieczenie, przychod: form.przychod, rodo: form.rodo,
     });
     if (err) { setError('Błąd zapisu. Spróbuj ponownie.'); setLoading(false); return; }
-    // Edge Function → CRM + GR
+    // Edge Function → CRM + GR (fire-and-forget; lead already saved above)
     fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
       body: JSON.stringify({ company: form.firma || `${form.imie} ${form.nazwisko}`.trim(), contact: `${form.imie} ${form.nazwisko}`.trim(), email: form.email, phone: form.telefon, nip: form.nip, ubezpieczenie: form.ubezpieczenie, przychod: form.przychod, tag: 'własny', lead_source: 'formularz', send_to_gr: true }),
-    }).catch(() => null);
+    }).then(r => { if (!r.ok) r.text().then(t => console.error('lead-import error:', t)); })
+      .catch(err => console.error('lead-import network error:', err));
     setSent(true);
   };
 

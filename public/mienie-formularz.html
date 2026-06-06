@@ -340,9 +340,7 @@
 </div><!-- /state-form -->
 
 <script>
-const SUPABASE_URL = 'https://dhuvykwecsxgchzxufxw.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRodXZ5a3dlY3N4Z2Noenh1Znh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwMzAwNzEsImV4cCI6MjA5MjYwNjA3MX0.ooJL1hFIN3Mjb22QEtI7ZFAfSyLM4aGwduGGMykaaHE';
-const HEADERS = { 'Content-Type':'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+const EDGE_URL = 'https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/mienie-form';
 
 let TOKEN = '', COMPANY_ID = null, EXISTING_ID = null;
 let LOC_IDX = 0;
@@ -771,22 +769,24 @@ async function init() {
   TOKEN = new URLSearchParams(location.search).get('token') || '';
   if (!TOKEN) { showError('Brak tokenu w linku. Skontaktuj się z agentem.'); return; }
 
-  let company = null;
+  let formData = null;
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/crm_companies?form_token=eq.${encodeURIComponent(TOKEN)}&select=id,company,nip,regon,email,phone,city,state`, { headers: HEADERS });
+    const res = await fetch(`${EDGE_URL}?token=${encodeURIComponent(TOKEN)}`);
     const data = await res.json();
-    if (!Array.isArray(data) || !data.length) { showError('Nieprawidłowy lub nieważny link dostępu.'); return; }
-    company = data[0];
-    COMPANY_ID = company.id;
+    if (!res.ok) {
+      if (data.error === 'token_expired') {
+        showError('Twój link dostępu wygasł. Skontaktuj się z agentem, aby otrzymać nowy link.');
+      } else {
+        showError('Nieprawidłowy lub nieważny link dostępu.');
+      }
+      return;
+    }
+    formData = data;
+    COMPANY_ID = data.company.id;
+    if (data.wniosek?.id) EXISTING_ID = data.wniosek.id;
   } catch(e) { showError('Błąd połączenia z serwerem. Spróbuj odświeżyć stronę.'); return; }
 
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?form_token=eq.${encodeURIComponent(TOKEN)}&select=id`, { headers: HEADERS });
-    const data = await res.json();
-    if (Array.isArray(data) && data.length) { EXISTING_ID = data[0].id; }
-  } catch(e) { /* ignoruj */ }
-
-  // Prefill z danych firmy
+  const company = formData.company;
   setVal('f-nazwa', company.company || '');
   setVal('f-nip', company.nip || '');
   setVal('f-regon', company.regon || '');
@@ -796,8 +796,8 @@ async function init() {
 
   addSzkodaRow();
 
-  if (EXISTING_ID) {
-    await loadExisting();
+  if (EXISTING_ID && formData.wniosek) {
+    populateExistingForm(formData.wniosek, formData.lokalizacje);
   } else {
     addLocation();
   }
@@ -806,90 +806,78 @@ async function init() {
   document.getElementById('state-form').classList.remove('hidden');
 }
 
-async function loadExisting() {
-  try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?form_token=eq.${encodeURIComponent(TOKEN)}&select=*`, { headers: HEADERS });
-    const data = await res.json();
-    if (!Array.isArray(data) || !data.length) { addLocation(); return; }
-    const w = data[0];
+function populateExistingForm(w, locs) {
+  setVal('f-nazwa', w.nazwa_firmy);
+  setVal('f-nip', w.nip); setVal('f-regon', w.regon); setVal('f-krs', w.krs);
+  setVal('f-adres-siedziby', w.adres_siedziby); setVal('f-forma-prawna', w.forma_prawna);
+  setVal('f-pkd', w.numer_pkd); setVal('f-email', w.email_kontaktowy);
+  setVal('f-telefon', w.telefon); setVal('f-osoba', w.osoba_kontaktu);
+  setVal('f-stanowisko', w.stanowisko);
+  setVal('f-dzialalnosc', w.rodzaj_dzialalnosci); setVal('f-pracownicy', w.liczba_pracownikow);
+  setVal('f-obrot', w.roczny_obrot);
+  if (w.zakres) document.querySelectorAll('[name=zakres]').forEach(cb => { cb.checked = w.zakres.includes(cb.value); });
 
-    setVal('f-nazwa', w.nazwa_firmy);
-    setVal('f-nip', w.nip); setVal('f-regon', w.regon); setVal('f-krs', w.krs);
-    setVal('f-adres-siedziby', w.adres_siedziby); setVal('f-forma-prawna', w.forma_prawna);
-    setVal('f-pkd', w.numer_pkd); setVal('f-email', w.email_kontaktowy);
-    setVal('f-telefon', w.telefon); setVal('f-osoba', w.osoba_kontaktu);
-    setVal('f-stanowisko', w.stanowisko);
-    setVal('f-dzialalnosc', w.rodzaj_dzialalnosci); setVal('f-pracownicy', w.liczba_pracownikow);
-    setVal('f-obrot', w.roczny_obrot);
-    if (w.zakres) document.querySelectorAll('[name=zakres]').forEach(cb => { cb.checked = w.zakres.includes(cb.value); });
+  setCheck('f-brak-szkod', w.brak_szkod);
+  if (!w.brak_szkod && w.szkody) { document.getElementById('szkody-table').classList.remove('hidden'); w.szkody.forEach(s => addSzkodaRow(s)); }
+  setCheck('f-ma-polise', w.posiada_polise);
+  if (w.posiada_polise) { document.getElementById('polisa-details').classList.remove('hidden'); }
+  setVal('f-tow', w.towarzystwo_obecne); setVal('f-nr-polisy', w.nr_polisy_obecny);
+  setVal('f-waznosc', w.waznosc_do); setVal('f-skladka-obecna', w.roczna_skladka_obecna);
+  setVal('f-uwagi', w.uwagi);
+  setCheck('f-zgoda-prawdziwosc', w.zgoda_prawdziwosc);
+  setCheck('f-zgoda-rodo', w.zgoda_rodo);
 
-    setCheck('f-brak-szkod', w.brak_szkod);
-    if (!w.brak_szkod && w.szkody) { document.getElementById('szkody-table').classList.remove('hidden'); w.szkody.forEach(s => addSzkodaRow(s)); }
-    setCheck('f-ma-polise', w.posiada_polise);
-    if (w.posiada_polise) { document.getElementById('polisa-details').classList.remove('hidden'); }
-    setVal('f-tow', w.towarzystwo_obecne); setVal('f-nr-polisy', w.nr_polisy_obecny);
-    setVal('f-waznosc', w.waznosc_do); setVal('f-skladka-obecna', w.roczna_skladka_obecna);
-    setVal('f-uwagi', w.uwagi);
-    setCheck('f-zgoda-prawdziwosc', w.zgoda_prawdziwosc);
-    setCheck('f-zgoda-rodo', w.zgoda_rodo);
-
-    // Załaduj lokalizacje
-    try {
-      const locRes = await fetch(`${SUPABASE_URL}/rest/v1/mienie_lokalizacje?wniosek_id=eq.${EXISTING_ID}&order=nr`, { headers: HEADERS });
-      const locs = await locRes.json();
-      if (Array.isArray(locs) && locs.length) {
-        locs.forEach(loc => addLocation(loc));
-      } else {
-        // Stary wniosek bez tabeli lokalizacji — wstaw jedną z danych wniosku
-        addLocation({
-          adres: w.adres_lokalizacji,
-          typ_lokalu: w.typ_lokalu,
-          pietro: w.pietro,
-          powierzchnia: w.powierzchnia,
-          rok_budowy: w.rok_budowy,
-          rok_remontu: w.rok_remontu,
-          budynek_wlasny: w.budynek_wlasny,
-          material_scian: w.material_scian,
-          pokrycie_dachu: w.pokrycie_dachu,
-          stan_techniczny: w.stan_techniczny,
-          ogrzewanie: w.ogrzewanie,
-          materialy_palne: w.materialy_palne,
-          gasnice_szt: w.gasnice_szt,
-          hydranty: w.hydranty,
-          data_przegladu_gasnic: w.data_przegladu_gasnic,
-          sap: w.sap,
-          tryskacze: w.tryskacze,
-          drogi_ewakuacyjne: w.drogi_ewakuacyjne,
-          odleglosc_psp: w.odleglosc_psp,
-          zakaz_palenia: w.zakaz_palenia,
-          alarm_typ: w.alarm_typ,
-          ogrodzenie: w.ogrodzenie,
-          agencja_ochrony: w.agencja_ochrony,
-          agencja_24h: w.agencja_24h,
-          cctv: w.cctv,
-          kraty: w.kraty,
-          rolety: w.rolety,
-          zamki_atestowane: w.zamki_atestowane,
-          drzwi_atestowane: w.drzwi_atestowane,
-          szyby_antywlamaniowe: w.szyby_antywlamaniowe,
-          sejf_klasa: w.sejf_klasa,
-          system_alarmowy: w.system_alarmowy,
-          suma_budynek: w.suma_budynek,
-          suma_wyposazenie: w.suma_wyposazenie,
-          suma_maszyny: w.suma_maszyny,
-          suma_obrotowe: w.suma_srodki_obrotowe,
-          suma_elektronika: w.suma_elektronika_it,
-          suma_sprzet: w.suma_sprzet_medyczny,
-          suma_gotowka_lokal: w.suma_gotowka_lokal,
-          suma_gotowka_trans: w.suma_gotowka_transport,
-          suma_szyby: w.suma_szyby,
-          suma_pracownicy: w.suma_mienie_pracownikow,
-          sprzet_medyczny: w.sprzet_medyczny,
-          elektronika_eei: w.elektronika_eei,
-        });
-      }
-    } catch(e) { addLocation(); console.error('loadExisting locs', e); }
-  } catch(e) { addLocation(); console.error('loadExisting', e); }
+  if (Array.isArray(locs) && locs.length) {
+    locs.forEach(loc => addLocation(loc));
+  } else {
+    // Stary wniosek bez tabeli lokalizacji — wstaw jedną z danych wniosku
+    addLocation({
+      adres: w.adres_lokalizacji,
+      typ_lokalu: w.typ_lokalu,
+      pietro: w.pietro,
+      powierzchnia: w.powierzchnia,
+      rok_budowy: w.rok_budowy,
+      rok_remontu: w.rok_remontu,
+      budynek_wlasny: w.budynek_wlasny,
+      material_scian: w.material_scian,
+      pokrycie_dachu: w.pokrycie_dachu,
+      stan_techniczny: w.stan_techniczny,
+      ogrzewanie: w.ogrzewanie,
+      materialy_palne: w.materialy_palne,
+      gasnice_szt: w.gasnice_szt,
+      hydranty: w.hydranty,
+      data_przegladu_gasnic: w.data_przegladu_gasnic,
+      sap: w.sap,
+      tryskacze: w.tryskacze,
+      drogi_ewakuacyjne: w.drogi_ewakuacyjne,
+      odleglosc_psp: w.odleglosc_psp,
+      zakaz_palenia: w.zakaz_palenia,
+      alarm_typ: w.alarm_typ,
+      ogrodzenie: w.ogrodzenie,
+      agencja_ochrony: w.agencja_ochrony,
+      agencja_24h: w.agencja_24h,
+      cctv: w.cctv,
+      kraty: w.kraty,
+      rolety: w.rolety,
+      zamki_atestowane: w.zamki_atestowane,
+      drzwi_atestowane: w.drzwi_atestowane,
+      szyby_antywlamaniowe: w.szyby_antywlamaniowe,
+      sejf_klasa: w.sejf_klasa,
+      system_alarmowy: w.system_alarmowy,
+      suma_budynek: w.suma_budynek,
+      suma_wyposazenie: w.suma_wyposazenie,
+      suma_maszyny: w.suma_maszyny,
+      suma_obrotowe: w.suma_srodki_obrotowe,
+      suma_elektronika: w.suma_elektronika_it,
+      suma_sprzet: w.suma_sprzet_medyczny,
+      suma_gotowka_lokal: w.suma_gotowka_lokal,
+      suma_gotowka_trans: w.suma_gotowka_transport,
+      suma_szyby: w.suma_szyby,
+      suma_pracownicy: w.suma_mienie_pracownikow,
+      sprzet_medyczny: w.sprzet_medyczny,
+      elektronika_eei: w.elektronika_eei,
+    });
+  }
 }
 
 // ===== HELPERS =====
@@ -971,41 +959,13 @@ async function saveForm() {
     roczna_skladka_obecna: parseFloat(getVal('f-skladka-obecna')) || null,
     uwagi: getVal('f-uwagi'),
     zgoda_prawdziwosc: getCheck('f-zgoda-prawdziwosc'), zgoda_rodo: getCheck('f-zgoda-rodo'),
-    updated_at: new Date().toISOString(),
   };
 
-  let wniosekId = EXISTING_ID;
-  let res;
-  if (EXISTING_ID) {
-    res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski?id=eq.${EXISTING_ID}`, {
-      method: 'PATCH', headers: { ...HEADERS, 'Prefer': 'return=minimal' },
-      body: JSON.stringify(payload)
-    });
-  } else {
-    res = await fetch(`${SUPABASE_URL}/rest/v1/mienie_wnioski`, {
-      method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=representation' },
-      body: JSON.stringify(payload)
-    });
-    if (!res.ok) throw new Error(await res.text());
-    const created = await res.json();
-    wniosekId = created[0]?.id;
-    EXISTING_ID = wniosekId;
-    res = { ok: true }; // mark as ok since we already consumed the response
-  }
-  if (!res.ok) throw new Error(await res.text());
-
-  // Zapisz lokalizacje
-  await fetch(`${SUPABASE_URL}/rest/v1/mienie_lokalizacje?wniosek_id=eq.${wniosekId}`, {
-    method: 'DELETE', headers: HEADERS
-  });
-
-  for (const loc of locs) {
-    const locPayload = {
-      wniosek_id: wniosekId,
-      company_id: COMPANY_ID,
-      form_token: TOKEN,
-      nr: loc.nr,
-      nazwa: loc.nazwa,
+  const lokalizacje = locs.map(loc => ({
+    company_id: COMPANY_ID,
+    form_token: TOKEN,
+    nr: loc.nr,
+    nazwa: loc.nazwa,
       adres: loc.adres,
       typ_lokalu: loc.typLokalu,
       pietro: loc.pietro,
@@ -1051,13 +1011,18 @@ async function saveForm() {
       suma_lacznie: loc.sumaLacznie,
       sprzet_medyczny: JSON.stringify(loc.sprzetMedyczny),
       elektronika_eei: JSON.stringify(loc.elektronikaEei),
-    };
-    const lr = await fetch(`${SUPABASE_URL}/rest/v1/mienie_lokalizacje`, {
-      method: 'POST', headers: { ...HEADERS, 'Prefer': 'return=minimal' },
-      body: JSON.stringify(locPayload)
-    });
-    if (!lr.ok) console.error('loc save error', await lr.text());
-  }
+  }));
+
+  const res = await fetch(`${EDGE_URL}?token=${encodeURIComponent(TOKEN)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ payload, lokalizacje }),
+  });
+
+  const result = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(result.error || 'Błąd zapisu. Spróbuj ponownie.');
+
+  if (result.wniosekId) EXISTING_ID = result.wniosekId;
 }
 
 async function handleSubmit() {

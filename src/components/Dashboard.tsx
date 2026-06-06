@@ -112,21 +112,26 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
   const handleAdd = async () => {
     if (!newCo.company?.trim()) return;
     // Wyślij przez Edge Function (zapisze do CRM + opcjonalnie do GR)
-    await fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
-      body: JSON.stringify({
-        company:       newCo.company,
-        contact:       newCo.contact ?? '',
-        email:         newCo.email ?? '',
-        phone:         newCo.phone ?? '',
-        nip:           newCo.nip ?? '',
-        ubezpieczenie: newCo.ubezpieczenie ?? '',
-        tag:           newCoSource,
-        lead_source:   newCoSource,
-        send_to_gr:    sendToGR,
-      }),
-    }).catch(() => null);
+    try {
+      const r = await fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
+        body: JSON.stringify({
+          company:       newCo.company,
+          contact:       newCo.contact ?? '',
+          email:         newCo.email ?? '',
+          phone:         newCo.phone ?? '',
+          nip:           newCo.nip ?? '',
+          ubezpieczenie: newCo.ubezpieczenie ?? '',
+          tag:           newCoSource,
+          lead_source:   newCoSource,
+          send_to_gr:    sendToGR,
+        }),
+      });
+      if (!r.ok) console.error('lead-import error:', await r.text());
+    } catch (err) {
+      console.error('lead-import network error:', err);
+    }
     // Odśwież dane
     await useCRMStore.getState().loadData();
     setNewCo({}); setNewCoSource('własny'); setSendToGR(false); setShowAdd(false);

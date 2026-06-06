@@ -160,7 +160,16 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       author: entry.author,
       created_at: entry.date,
     }).then(({ error }) => {
-      if (error) console.error('addHistory error:', error.message, error.code);
+      if (error) {
+        console.error('addHistory error:', error.message, error.code);
+        // Retry once after 2s
+        setTimeout(() => {
+          supabase.from('crm_history').insert({
+            id: entry.id, company_id: companyId, type: entry.type,
+            note: entry.note, author: entry.author, created_at: entry.date,
+          }).then(({ error: e2 }) => { if (e2) console.error('addHistory retry failed:', e2.message); });
+        }, 2000);
+      }
     });
   },
 
@@ -365,14 +374,16 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
 
   generateFormToken: async (companyId) => {
     const token = `${crypto.randomUUID()}-ID${companyId}`;
-    await supabase.from('crm_companies').update({ form_token: token }).eq('id', companyId);
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('crm_companies').update({ form_token: token, form_token_expires_at: expiresAt }).eq('id', companyId);
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
     return token;
   },
 
   resetFormToken: async (companyId) => {
     const token = `${crypto.randomUUID()}-ID${companyId}`;
-    await supabase.from('crm_companies').update({ form_token: token }).eq('id', companyId);
+    const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('crm_companies').update({ form_token: token, form_token_expires_at: expiresAt }).eq('id', companyId);
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
     return token;
   },
