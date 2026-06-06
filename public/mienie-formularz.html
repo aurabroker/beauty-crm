@@ -951,7 +951,6 @@ function collectSzkody() {
 // ===== SUBMIT =====
 async function saveForm() {
   const locs = collectLocations();
-  const sumaTotal = locs.reduce((s, l) => s + l.sumaLacznie, 0);
 
   const payload = {
     company_id: COMPANY_ID,
@@ -965,7 +964,6 @@ async function saveForm() {
     rodzaj_dzialalnosci: getVal('f-dzialalnosc'), liczba_pracownikow: getVal('f-pracownicy'),
     roczny_obrot: getVal('f-obrot'),
     zakres: getChecked('zakres'),
-    suma_lacznie: sumaTotal,
     brak_szkod: getCheck('f-brak-szkod'), szkody: collectSzkody(),
     posiada_polise: getCheck('f-ma-polise'),
     towarzystwo_obecne: getVal('f-tow'), nr_polisy_obecny: getVal('f-nr-polisy'),
