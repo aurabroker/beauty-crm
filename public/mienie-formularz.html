@@ -691,9 +691,9 @@ function collectLocSprzet(block) {
     const inputs = tr.querySelectorAll('input');
     const cb = tr.querySelector('input[type=checkbox]');
     return {
-      lp: i+1, nazwa: inputs[1]?.value||'', producent: inputs[2]?.value||'',
-      model: inputs[3]?.value||'', nrSeryjny: inputs[4]?.value||'',
-      rokZakupu: inputs[5]?.value||'', wartosc: parseFloat(inputs[6]?.value)||0,
+      lp: i+1, nazwa: inputs[0]?.value||'', producent: inputs[1]?.value||'',
+      model: inputs[2]?.value||'', nrSeryjny: inputs[3]?.value||'',
+      rokZakupu: inputs[4]?.value||'', wartosc: parseFloat(inputs[5]?.value)||0,
       certCE: cb?.checked ?? true
     };
   }).filter(r => r.nazwa);
@@ -703,9 +703,9 @@ function collectLocEei(block) {
   return [...block.querySelectorAll('.loc-eei-tbody tr')].map((tr, i) => {
     const inputs = tr.querySelectorAll('input');
     return {
-      lp: i+1, nazwa: inputs[1]?.value||'', producent: inputs[2]?.value||'',
-      model: inputs[3]?.value||'', rokZakupu: inputs[4]?.value||'',
-      wartosc: parseFloat(inputs[5]?.value)||0, nrSeryjny: inputs[6]?.value||''
+      lp: i+1, nazwa: inputs[0]?.value||'', producent: inputs[1]?.value||'',
+      model: inputs[2]?.value||'', rokZakupu: inputs[3]?.value||'',
+      wartosc: parseFloat(inputs[4]?.value)||0, nrSeryjny: inputs[5]?.value||''
     };
   }).filter(r => r.nazwa);
 }
