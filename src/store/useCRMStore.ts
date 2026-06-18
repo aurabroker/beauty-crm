@@ -3,6 +3,18 @@ import { supabase } from '../lib/supabase';
 import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy, MienieWniosek, MienieLokalizacja } from '../data/companies';
 import { DEFAULT_STAGES } from '../data/companies';
 
+// Niektóre pola tablicowe (sprzet_medyczny, elektronika_eei) są zapisywane przez
+// formularz jako string JSON (double-encoded). Normalizujemy je zawsze do tablicy,
+// inaczej .filter/.length/.map wybucha na stringu/obiekcie.
+function toArray<T = unknown>(v: unknown): T[] {
+  if (Array.isArray(v)) return v as T[];
+  if (typeof v === 'string') {
+    try { const p = JSON.parse(v); return Array.isArray(p) ? (p as T[]) : []; }
+    catch { return []; }
+  }
+  return [];
+}
+
 function calcReminderDate(dataDo: string): string {
   if (!dataDo) return '';
   const d = new Date(dataDo);
@@ -304,7 +316,7 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
       sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
       sumaLacznie: Number(r.suma_lacznie ?? 0),
-      sprzet: r.sprzet_medyczny ?? [], elektronika: r.elektronika_eei ?? [],
+      sprzet: toArray(r.sprzet_medyczny), elektronika: toArray(r.elektronika_eei),
       createdAt: r.created_at,
     }));
     if (!error && data) {
@@ -329,7 +341,7 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
         pokrycieDachu: r.pokrycie_dachu ?? '', stanTechniczny: r.stan_techniczny ?? '',
         ogrzewanie: r.ogrzewanie ?? '', materialyPalne: r.materialy_palne ?? false,
         rodzajDzialalnosci: r.rodzaj_dzialalnosci ?? '', liczbaPracownikow: r.liczba_pracownikow ?? '',
-        rocznyObrot: r.roczny_obrot ?? '', zabiegi: r.zabiegi ?? [],
+        rocznyObrot: r.roczny_obrot ?? '', zabiegi: toArray(r.zabiegi),
         gasniceSzt: r.gasnice_szt ?? '', hydranty: r.hydranty ?? false,
         dataPrzegladuGasnic: r.data_przegladu_gasnic ?? '', sap: r.sap ?? false,
         tryskacze: r.tryskacze ?? false, drogiEwakuacyjne: r.drogi_ewakuacyjne ?? false,
@@ -340,20 +352,20 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
         zamkiAtestowane: r.zamki_atestowane ?? false, drzwiAtestowane: r.drzwi_atestowane ?? false,
         szybyAntywlamaniowe: r.szyby_antywlamaniowe ?? false, sejfKlasa: r.sejf_klasa ?? 'brak',
         systemAlarmowy: r.system_alarmowy ?? false,
-        zakres: r.zakres ?? [],
+        zakres: toArray(r.zakres),
         sumaBudynek: Number(r.suma_budynek ?? 0), sumaWyposazenie: Number(r.suma_wyposazenie ?? 0),
         sumaMaszyny: Number(r.suma_maszyny ?? 0), sumaSrodkiObrotowe: Number(r.suma_srodki_obrotowe ?? 0),
         sumaElektronikaIt: Number(r.suma_elektronika_it ?? 0), sumaSprzet: Number(r.suma_sprzet_medyczny ?? 0),
         sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
         sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
         sumaLacznie,
-        brakSzkod: r.brak_szkod ?? true, szkody: r.szkody ?? [],
+        brakSzkod: r.brak_szkod ?? true, szkody: toArray(r.szkody),
         posiadaPolise: r.posiada_polise ?? false, towarzystwoObecne: r.towarzystwo_obecne ?? '',
         nrPolisyObecny: r.nr_polisy_obecny ?? '', waznoscDo: r.waznosc_do ?? '',
         rocznaSlkadkaObecna: r.roczna_skladka_obecna ? Number(r.roczna_skladka_obecna) : null,
         uwagi: r.uwagi ?? '', zgodaPrawdziwosc: r.zgoda_prawdziwosc ?? false, zgodaRodo: r.zgoda_rodo ?? false,
-        sprzet: loks[0]?.sprzet ?? r.sprzet_medyczny ?? [],
-        elektronika: loks[0]?.elektronika ?? r.elektronika_eei ?? [],
+        sprzet: loks[0]?.sprzet ?? toArray(r.sprzet_medyczny),
+        elektronika: loks[0]?.elektronika ?? toArray(r.elektronika_eei),
         createdAt: r.created_at, updatedAt: r.updated_at,
       });
       });
