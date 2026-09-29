@@ -1,4 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
+import { toast } from 'sonner';
+import { supabase } from '../lib/supabase';
 import { useCRMStore } from '../store/useCRMStore';
 import type { Company } from '../data/companies';
 import { TAGI_ZADANIOWE, RODZAJE_UBEZPIECZEN } from '../data/companies';
@@ -111,11 +113,9 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
 
   const handleAdd = async () => {
     if (!newCo.company?.trim()) return;
-    // Wyślij przez Edge Function (zapisze do CRM + opcjonalnie do GR)
-    await fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
-      body: JSON.stringify({
+    // Edge Function zapisze do CRM (dedup po NIP) + opcjonalnie do GR; autoryzacja sesją użytkownika.
+    const { error } = await supabase.functions.invoke('lead-import', {
+      body: {
         company:       newCo.company,
         contact:       newCo.contact ?? '',
         email:         newCo.email ?? '',
@@ -125,8 +125,9 @@ export function Dashboard({ onSelectCompany }: DashboardProps) {
         tag:           newCoSource,
         lead_source:   newCoSource,
         send_to_gr:    sendToGR,
-      }),
-    }).catch(() => null);
+      },
+    });
+    if (error) { toast.error(`Dodawanie firmy: ${error.message}`); return; }
     // Odśwież dane
     await useCRMStore.getState().loadData();
     setNewCo({}); setNewCoSource('własny'); setSendToGR(false); setShowAdd(false);

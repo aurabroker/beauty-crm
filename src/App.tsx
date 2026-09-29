@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { Toaster } from 'sonner';
 import { supabase } from './lib/supabase';
 import type { Session } from '@supabase/supabase-js';
 import { useCRMStore } from './store/useCRMStore';
@@ -28,23 +29,38 @@ const NAV: { key: View; label: string }[] = [
   { key:'admin',     label:'Admin' },
 ];
 
-// Detect if we're on the public form URL
 const isPublicForm = window.location.pathname === '/formularz' || window.location.search.includes('form=1');
+
+const IDLE_LOGOUT_MS = 60 * 60 * 1000;
+
+function useIdleLogout() {
+  useEffect(() => {
+    let timer = window.setTimeout(logout, IDLE_LOGOUT_MS);
+    function logout() { supabase.auth.signOut(); }
+    function reset() { window.clearTimeout(timer); timer = window.setTimeout(logout, IDLE_LOGOUT_MS); }
+    const events = ['mousedown', 'keydown', 'touchstart', 'wheel'] as const;
+    events.forEach(e => window.addEventListener(e, reset, { passive: true }));
+    return () => { window.clearTimeout(timer); events.forEach(e => window.removeEventListener(e, reset)); };
+  }, []);
+}
 
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    if (isPublicForm) return;
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setAuthLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === 'SIGNED_OUT') useCRMStore.getState().reset();
+    });
     return () => subscription.unsubscribe();
   }, []);
 
-  // Public form — no auth needed
   if (isPublicForm) return <LeadForm />;
 
   if (authLoading) return (
@@ -53,30 +69,42 @@ export default function App() {
     </div>
   );
 
-  if (!session) return <LoginPage onLogin={() => {}} />;
+  if (!session) return <LoginPage />;
 
-  return <CRMApp />;
+  return (
+    <>
+      <Toaster richColors position="top-right" />
+      <CRMApp key={session.user.id} email={session.user.email ?? ''} />
+    </>
+  );
 }
 
-function CRMApp() {
-  const { currentUser, users, setCurrentUser, companies, loadData, loading } = useCRMStore();
+function FullScreenMessage({ title, text, action }: { title: string; text: string; action?: { label: string; onClick: () => void } }) {
+  return (
+    <div className="flex h-screen items-center justify-center bg-zinc-950 px-4">
+      <div className="text-center max-w-sm">
+        <div className="text-white font-bold text-lg mb-2">{title}</div>
+        <div className="text-zinc-400 text-sm mb-6">{text}</div>
+        <div className="flex gap-2 justify-center">
+          {action && (
+            <button onClick={action.onClick} className="h-9 px-4 bg-pink-600 text-white text-sm font-semibold hover:bg-pink-500">{action.label}</button>
+          )}
+          <button onClick={() => supabase.auth.signOut()} className="h-9 px-4 border border-zinc-700 text-zinc-300 text-sm hover:bg-zinc-800">Wyloguj się</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CRMApp({ email }: { email: string }) {
+  const { currentUser, companies, loadData, loading, loadError } = useCRMStore();
   const [view, setView] = useState<View>('home');
   const [selectedCompany, setSelectedCompany] = useState<Company|null>(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
 
-  useEffect(() => {
-    loadData().then(() => {
-      // Auto-match logged Supabase user to crm_users by email
-      supabase.auth.getUser().then(({ data }) => {
-        const authEmail = data.user?.email;
-        if (authEmail) {
-          const state = useCRMStore.getState();
-          const matched = state.users.find(u => u.email === authEmail);
-          if (matched) state.setCurrentUser(matched);
-        }
-      });
-    });
-  }, []);
+  useIdleLogout();
+
+  useEffect(() => { loadData(); }, [loadData]);
 
   const freshCompany = selectedCompany ? companies.find(c => c.id === selectedCompany.id) ?? selectedCompany : null;
   const totalReminders = companies.reduce((s,c) => s + c.reminders.filter(r => !r.done).length, 0);
@@ -84,6 +112,14 @@ function CRMApp() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
   };
+
+  if (!loading && loadError) return (
+    <FullScreenMessage title="Nie udało się wczytać danych" text={loadError} action={{ label: 'Spróbuj ponownie', onClick: () => loadData() }} />
+  );
+
+  if (!loading && !currentUser) return (
+    <FullScreenMessage title="Brak dostępu do CRM" text={`Konto ${email} nie jest aktywnym użytkownikiem CRM. Poproś administratora o dodanie adresu w panelu Admin.`} />
+  );
 
   if (loading) return (
     <div className="flex h-screen items-center justify-center bg-zinc-950">
@@ -146,19 +182,12 @@ function CRMApp() {
                 <span className="text-zinc-500 text-xs">▾</span>
               </button>
               {showUserMenu && (
-                <div className="absolute right-0 top-full mt-1 w-52 bg-zinc-900 border border-zinc-700 shadow-xl z-50">
-                  <div className="px-3 py-2 text-xs text-zinc-500 uppercase tracking-widest border-b border-zinc-800">Przełącz konto</div>
-                  {users.map(u => (
-                    <button key={u.id} onClick={() => { setCurrentUser(u); setShowUserMenu(false); }}
-                      className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm text-left transition-colors ${currentUser?.id===u.id ? 'bg-zinc-800 text-white' : 'text-zinc-300 hover:bg-zinc-800'}`}>
-                      <div className="w-6 h-6 flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{ backgroundColor: u.color }}>
-                        {u.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()}
-                      </div>
-                      <div><div>{u.name}</div><div className="text-xs text-zinc-500">{u.role}</div></div>
-                      {currentUser?.id === u.id && <span className="ml-auto text-pink-400 text-xs">✓</span>}
-                    </button>
-                  ))}
-                  <div className="border-t border-zinc-800 p-2">
+                <div className="absolute right-0 top-full mt-1 w-56 bg-zinc-900 border border-zinc-700 shadow-xl z-50">
+                  <div className="px-3 py-2.5 border-b border-zinc-800">
+                    <div className="text-sm text-white">{currentUser?.name}</div>
+                    <div className="text-xs text-zinc-500 truncate">{currentUser?.email} · {currentUser?.role}</div>
+                  </div>
+                  <div className="p-2">
                     <button onClick={handleLogout} className="w-full text-left px-3 py-2 text-xs text-zinc-400 hover:text-red-400 hover:bg-zinc-800 transition-colors">
                       🚪 Wyloguj się
                     </button>

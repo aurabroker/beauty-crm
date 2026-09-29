@@ -20,6 +20,7 @@ const inp = "w-full h-10 border border-zinc-300 px-3 text-sm focus:outline-none 
 
 export function LeadForm() {
   const [form, setForm] = useState({ imie:'', nazwisko:'', firma:'', nip:'', email:'', telefon:'', ubezpieczenie:'', przychod:'', rodo: false });
+  const [website, setWebsite]       = useState('');
   const [loading, setLoading]       = useState(false);
   const [sent, setSent]             = useState(false);
   const [error, setError]           = useState('');
@@ -31,19 +32,19 @@ export function LeadForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.rodo) { setError('Wymagana zgoda na przetwarzanie danych'); return; }
+    // Honeypot: pole niewidoczne dla ludzi, boty je wypełniają.
+    if (website) { setSent(true); return; }
     setLoading(true); setError('');
+    const intakeId = crypto.randomUUID();
     const { error: err } = await supabase.from('crm_lead_intake').insert({
-      imie: form.imie, nazwisko: form.nazwisko, firma: form.firma,
-      nip: form.nip, email: form.email, telefon: form.telefon,
+      id: intakeId,
+      imie: form.imie.trim(), nazwisko: form.nazwisko.trim(), firma: form.firma.trim(),
+      nip: form.nip.replace(/\D/g, ''), email: form.email.trim(), telefon: form.telefon.trim(),
       ubezpieczenie: form.ubezpieczenie, przychod: form.przychod, rodo: form.rodo,
     });
     if (err) { setError('Błąd zapisu. Spróbuj ponownie.'); setLoading(false); return; }
-    // Edge Function → CRM + GR
-    fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
-      body: JSON.stringify({ company: form.firma || `${form.imie} ${form.nazwisko}`.trim(), contact: `${form.imie} ${form.nazwisko}`.trim(), email: form.email, phone: form.telefon, nip: form.nip, ubezpieczenie: form.ubezpieczenie, przychod: form.przychod, tag: 'własny', lead_source: 'formularz', send_to_gr: true }),
-    }).catch(() => null);
+    // Edge Function przenosi zgłoszenie do CRM (+ GetResponse); dane czyta z bazy po intake_id.
+    await supabase.functions.invoke('lead-import', { body: { intake_id: intakeId } }).catch(() => null);
     setSent(true);
   };
 
@@ -80,11 +81,11 @@ export function LeadForm() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-medium text-zinc-600 mb-1 block">Imię *</label>
-              <input value={form.imie} onChange={f('imie')} required placeholder="Anna" className={inp}/>
+              <input value={form.imie} onChange={f('imie')} required maxLength={100} placeholder="Anna" className={inp}/>
             </div>
             <div>
               <label className="text-xs font-medium text-zinc-600 mb-1 block">Nazwisko *</label>
-              <input value={form.nazwisko} onChange={f('nazwisko')} required placeholder="Kowalska" className={inp}/>
+              <input value={form.nazwisko} onChange={f('nazwisko')} required maxLength={100} placeholder="Kowalska" className={inp}/>
             </div>
           </div>
 
@@ -92,11 +93,11 @@ export function LeadForm() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-medium text-zinc-600 mb-1 block">Telefon *</label>
-              <input value={form.telefon} onChange={f('telefon')} required type="tel" placeholder="+48 500 000 000" className={inp}/>
+              <input value={form.telefon} onChange={f('telefon')} required type="tel" maxLength={30} placeholder="+48 500 000 000" className={inp}/>
             </div>
             <div>
               <label className="text-xs font-medium text-zinc-600 mb-1 block">E-mail *</label>
-              <input value={form.email} onChange={f('email')} required type="email" placeholder="anna@salon.pl" className={inp}/>
+              <input value={form.email} onChange={f('email')} required type="email" maxLength={254} placeholder="anna@salon.pl" className={inp}/>
             </div>
           </div>
 
@@ -104,7 +105,7 @@ export function LeadForm() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="text-xs font-medium text-zinc-600 mb-1 block">Nazwa salonu *</label>
-              <input value={form.firma} onChange={f('firma')} required placeholder="Salon Urody Anna" className={inp}/>
+              <input value={form.firma} onChange={f('firma')} required maxLength={200} placeholder="Salon Urody Anna" className={inp}/>
             </div>
             <div>
               <label className="text-xs font-medium text-zinc-600 mb-1 block">NIP</label>
@@ -129,6 +130,9 @@ export function LeadForm() {
               {PRZYCHODYS.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+
+          <input type="text" name="website" value={website} onChange={e => setWebsite(e.target.value)}
+            tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[10000px] w-px h-px opacity-0"/>
 
           {/* RODO */}
           <div className="pt-1">

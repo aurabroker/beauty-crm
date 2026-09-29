@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import { toast } from 'sonner';
+import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy, MienieWniosek, MienieLokalizacja } from '../data/companies';
 import { DEFAULT_STAGES } from '../data/companies';
@@ -13,6 +15,40 @@ function toArray<T = unknown>(v: unknown): T[] {
     catch { return []; }
   }
   return [];
+}
+
+// PostgREST zwraca maksymalnie 1000 wierszy na zapytanie — bez stronicowania
+// część firm i historii po prostu znikała z CRM.
+const PAGE_SIZE = 1000;
+async function fetchAll<T>(page: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: PostgrestError | null }>): Promise<T[]> {
+  const rows: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await page(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    rows.push(...(data ?? []));
+    if (!data || data.length < PAGE_SIZE) return rows;
+  }
+}
+
+function groupBy<T>(rows: T[], key: (row: T) => number): Map<number, T[]> {
+  const map = new Map<number, T[]>();
+  for (const row of rows) {
+    const k = key(row);
+    const list = map.get(k);
+    if (list) list.push(row); else map.set(k, [row]);
+  }
+  return map;
+}
+
+function reportError(action: string, error: { message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  console.error(action, error);
+  toast.error(`${action}: ${error.message ?? 'nieznany błąd'}`);
+  return true;
+}
+
+function denied(action: string): void {
+  toast.error(`${action}: brak uprawnień`);
 }
 
 function calcReminderDate(dataDo: string): string {
@@ -45,6 +81,23 @@ function dbRowToCompany(row: Record<string,unknown>, history: ContactHistory[]=[
   };
 }
 
+const COMPANY_COLUMNS: Partial<Record<keyof Company, string>> = {
+  company: 'company', contact: 'contact', title: 'title', phone: 'phone', email: 'email',
+  city: 'city', state: 'state', industry: 'industry', revenue: 'revenue', employees: 'employees',
+  url: 'url', nip: 'nip', notes: 'notes', ubezpieczenie: 'ubezpieczenie', przychod: 'przychod',
+  tag: 'tag', zainteresowania: 'zainteresowania', leadSource: 'lead_source', status: 'status',
+  assignedTo: 'assigned_to',
+};
+
+function companyToDb(data: Partial<Company>): Record<string, unknown> {
+  const row: Record<string, unknown> = {};
+  for (const [key, column] of Object.entries(COMPANY_COLUMNS)) {
+    const value = data[key as keyof Company];
+    if (value !== undefined) row[column] = value;
+  }
+  return row;
+}
+
 function dbRowToPolicy(row: Record<string,unknown>): Policy {
   return {
     id: row.id as string,
@@ -71,18 +124,19 @@ interface CRMState {
   stages: PipelineStage[];
   currentUser: CRMUser | null;
   loading: boolean;
+  loadError: string | null;
   mienieWnioski: MienieWniosek[];
   mienieLokalizacje: MienieLokalizacja[];
   mienieLoading: boolean;
   loadData: () => Promise<void>;
-  setCurrentUser: (user: CRMUser) => void;
+  reset: () => void;
   loadMienieWnioski: () => Promise<void>;
   generateFormToken: (companyId: number) => Promise<string>;
   resetFormToken: (companyId: number) => Promise<string>;
   addCompany: (data: Partial<Company>) => Promise<void>;
   deleteCompany: (id: number) => Promise<void>;
   updateCompanyStatus: (id: number, status: Company['status']) => void;
-  updateCompany: (id: number, data: Partial<Company>) => void;
+  updateCompany: (id: number, data: Partial<Company>) => Promise<void>;
   addHistory: (companyId: number, entry: ContactHistory) => void;
   addReminder: (companyId: number, reminder: Reminder) => void;
   toggleReminder: (companyId: number, reminderId: string) => void;
@@ -98,67 +152,82 @@ interface CRMState {
   importCompanies: (rows: Partial<Company>[]) => Promise<{ imported: number; merged: number; errors: number }>;
 }
 
-export const useCRMStore = create<CRMState>()((set, get) => ({
-  companies: [], users: [], stages: DEFAULT_STAGES,
-  currentUser: null, loading: true, mienieWnioski: [], mienieLokalizacje: [], mienieLoading: false,
+const INITIAL = {
+  companies: [] as Company[], users: [] as CRMUser[], stages: DEFAULT_STAGES,
+  currentUser: null as CRMUser | null, loading: true, loadError: null as string | null,
+  mienieWnioski: [] as MienieWniosek[], mienieLokalizacje: [] as MienieLokalizacja[], mienieLoading: false,
+};
 
-  setCurrentUser: (user) => { localStorage.setItem('crm-user-id', user.id); set({ currentUser: user }); },
+export const useCRMStore = create<CRMState>()((set, get) => ({
+  ...INITIAL,
+
+  reset: () => set({ ...INITIAL }),
 
   loadData: async () => {
-    set({ loading: true });
-    const [{ data: companiesData }, { data: historyData }, { data: remindersData }, { data: usersData }, { data: settingsData }, { data: policiesData }] = await Promise.all([
-      supabase.from('crm_companies').select('*').order('company'),
-      supabase.from('crm_history').select('*').order('created_at', { ascending: false }),
-      supabase.from('crm_reminders').select('*').order('date'),
-      supabase.from('crm_users').select('*').order('name'),
-      supabase.from('crm_settings').select('*'),
-      supabase.from('crm_policies').select('*').order('created_at', { ascending: false }),
-    ]);
-    const users: CRMUser[] = (usersData ?? []).map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, color: u.color, active: u.active }));
-    const stages: PipelineStage[] = settingsData?.find(s => s.key === 'pipeline_stages')?.value ?? DEFAULT_STAGES;
-    const companies = (companiesData ?? []).map(row => {
-      const history = (historyData ?? []).filter(h => h.company_id === row.id).map(h => ({ id: h.id, type: h.type, date: h.created_at, note: h.note, author: h.author }));
-      const reminders = (remindersData ?? []).filter(r => r.company_id === row.id).map(r => ({ id: r.id, date: r.date, text: r.text, done: r.done }));
-      const policies = (policiesData ?? []).filter(p => p.company_id === row.id).map(p => dbRowToPolicy(p as Record<string,unknown>));
-      return dbRowToCompany(row, history, reminders, policies);
-    });
-    const savedUserId = localStorage.getItem('crm-user-id');
-    const currentUser = users.find(u => u.id === savedUserId) ?? users.find(u => u.role === 'admin') ?? users[0] ?? null;
-    set({ companies, users, stages, currentUser, loading: false });
+    set({ loading: true, loadError: null });
+    try {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (authError || !user?.email) throw authError ?? new Error('Brak sesji');
+
+      const [companiesData, historyData, remindersData, usersData, settingsData, policiesData] = await Promise.all([
+        fetchAll((a, b) => supabase.from('crm_companies').select('*').order('company').order('id').range(a, b)),
+        fetchAll((a, b) => supabase.from('crm_history').select('*').order('created_at', { ascending: false }).order('id').range(a, b)),
+        fetchAll((a, b) => supabase.from('crm_reminders').select('*').order('date').order('id').range(a, b)),
+        fetchAll((a, b) => supabase.from('crm_users').select('*').order('name').order('id').range(a, b)),
+        fetchAll((a, b) => supabase.from('crm_settings').select('*').order('key').range(a, b)),
+        fetchAll((a, b) => supabase.from('crm_policies').select('*').order('created_at', { ascending: false }).order('id').range(a, b)),
+      ]);
+
+      const users: CRMUser[] = usersData.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, color: u.color, active: u.active }));
+      const email = user.email.toLowerCase();
+      const currentUser = users.find(u => u.active && u.email.toLowerCase() === email) ?? null;
+      const stages: PipelineStage[] = settingsData.find(s => s.key === 'pipeline_stages')?.value ?? DEFAULT_STAGES;
+
+      const historyBy = groupBy(historyData, h => h.company_id);
+      const remindersBy = groupBy(remindersData, r => r.company_id);
+      const policiesBy = groupBy(policiesData, p => p.company_id);
+      const companies = companiesData.map(row => dbRowToCompany(
+        row,
+        (historyBy.get(row.id) ?? []).map(h => ({ id: h.id, type: h.type, date: h.created_at, note: h.note, author: h.author })),
+        (remindersBy.get(row.id) ?? []).map(r => ({ id: r.id, date: r.date, text: r.text, done: r.done })),
+        (policiesBy.get(row.id) ?? []).map(p => dbRowToPolicy(p as Record<string,unknown>)),
+      ));
+
+      set({ companies, users, stages, currentUser, loading: false });
+    } catch (e) {
+      console.error('loadData', e);
+      set({ loading: false, loadError: (e as Error).message ?? 'Nie udało się wczytać danych' });
+    }
   },
 
   addCompany: async (data) => {
-    const maxId = Math.max(0, ...get().companies.map(c => c.id));
-    const newId = maxId + 1;
-    const row = { id: newId, company: data.company ?? '', contact: data.contact ?? '', title: data.title ?? '',
-      phone: data.phone ?? '', email: data.email ?? '', city: data.city ?? '', state: data.state ?? '',
-      industry: data.industry ?? '', revenue: data.revenue ?? 0, employees: data.employees ?? '',
-      url: data.url ?? '', nip: data.nip ?? '', status: data.status ?? 'lead', assigned_to: data.assignedTo ?? '',
-      tag: data.tag ?? '', zainteresowania: data.zainteresowania ?? '' };
-    const { error } = await supabase.from('crm_companies').insert(row);
-    if (!error) set(state => ({ companies: [...state.companies, dbRowToCompany(row)] }));
+    const row = companyToDb({ industry: '', revenue: 0, status: 'lead', assignedTo: '', ...data, company: data.company ?? '' });
+    const { data: inserted, error } = await supabase.from('crm_companies').insert(row).select().single();
+    if (reportError('Dodawanie firmy', error) || !inserted) return;
+    set(state => ({ companies: [...state.companies, dbRowToCompany(inserted)] }));
   },
 
   deleteCompany: async (id) => {
-    await supabase.from('crm_companies').delete().eq('id', id);
+    const { data, error } = await supabase.from('crm_companies').delete().eq('id', id).select('id');
+    if (reportError('Usuwanie firmy', error)) return;
+    if (!data?.length) return denied('Usuwanie firmy');
     set(state => ({ companies: state.companies.filter(c => c.id !== id) }));
   },
 
   updateCompanyStatus: (id, status) => {
     set(state => ({ companies: state.companies.map(c => c.id === id ? { ...c, status } : c) }));
-    supabase.from('crm_companies').update({ status, updated_at: new Date().toISOString() }).eq('id', id).then();
+    supabase.from('crm_companies').update({ status, updated_at: new Date().toISOString() }).eq('id', id)
+      .then(({ error }) => reportError('Zmiana statusu', error));
   },
 
-  updateCompany: (id, data) => {
+  updateCompany: async (id, data) => {
+    const previous = get().companies.find(c => c.id === id);
     set(state => ({ companies: state.companies.map(c => c.id === id ? { ...c, ...data } : c) }));
-    // Persist tag and zainteresowania changes
-    const dbFields: Record<string,unknown> = {};
-    if (data.tag !== undefined) dbFields.tag = data.tag;
-    if (data.zainteresowania !== undefined) dbFields.zainteresowania = data.zainteresowania;
-    if (data.leadSource !== undefined) dbFields.lead_source = data.leadSource;
-    if (data.status !== undefined) dbFields.status = data.status;
-    if (Object.keys(dbFields).length > 0) {
-      supabase.from('crm_companies').update(dbFields).eq('id', id).then();
+    const row = companyToDb(data);
+    if (Object.keys(row).length === 0) return;
+    const { error } = await supabase.from('crm_companies').update({ ...row, updated_at: new Date().toISOString() }).eq('id', id);
+    if (reportError('Zapis firmy', error) && previous) {
+      set(state => ({ companies: state.companies.map(c => c.id === id ? previous : c) }));
     }
   },
 
@@ -171,14 +240,13 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       note: entry.note,
       author: entry.author,
       created_at: entry.date,
-    }).then(({ error }) => {
-      if (error) console.error('addHistory error:', error.message, error.code);
-    });
+    }).then(({ error }) => reportError('Zapis historii', error));
   },
 
   addReminder: (companyId, reminder) => {
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, reminders: [...c.reminders, reminder] } : c) }));
-    supabase.from('crm_reminders').insert({ id: reminder.id, company_id: companyId, text: reminder.text, date: reminder.date, done: false }).then();
+    supabase.from('crm_reminders').insert({ id: reminder.id, company_id: companyId, text: reminder.text, date: reminder.date, done: false })
+      .then(({ error }) => reportError('Zapis przypomnienia', error));
   },
 
   toggleReminder: (companyId, reminderId) => {
@@ -186,12 +254,14 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     if (!r) return;
     const done = !r.done;
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, reminders: c.reminders.map(r => r.id === reminderId ? { ...r, done } : r) } : c) }));
-    supabase.from('crm_reminders').update({ done }).eq('id', reminderId).then();
+    supabase.from('crm_reminders').update({ done }).eq('id', reminderId)
+      .then(({ error }) => reportError('Zmiana przypomnienia', error));
   },
 
   deleteReminder: (companyId, reminderId) => {
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, reminders: c.reminders.filter(r => r.id !== reminderId) } : c) }));
-    supabase.from('crm_reminders').delete().eq('id', reminderId).then();
+    supabase.from('crm_reminders').delete().eq('id', reminderId)
+      .then(({ error }) => reportError('Usuwanie przypomnienia', error));
   },
 
   addPolicy: async (companyId, policyData) => {
@@ -212,21 +282,22 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       notes: policyData.notes,
       created_by: currentUser?.name ?? '',
     }).select().single();
+    if (reportError('Dodawanie polisy', error) || !inserted) return;
 
-    if (!error && inserted) {
-      const policy = dbRowToPolicy(inserted as Record<string,unknown>);
-      if (przypomnienie) {
-        const reminderId = crypto.randomUUID();
-        const reminderText = `🛡️ Odnowienie polisy ${policyData.nrPolisy ? `(${policyData.nrPolisy}) ` : ''}: ${policyData.rodzaj} — kończy się ${policyData.dataDo ? new Date(policyData.dataDo).toLocaleDateString('pl-PL') : '?'}`;
-        const reminderDate = `${przypomnienie}T09:00:00`;
-        await supabase.from('crm_reminders').insert({ id: reminderId, company_id: companyId, text: reminderText, date: reminderDate, done: false });
-        const reminder: Reminder = { id: reminderId, date: reminderDate, text: reminderText, done: false };
-        set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, policies: [policy, ...c.policies], reminders: [...c.reminders, reminder], status: 'zamkniety' } : c) }));
-      } else {
-        set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, policies: [policy, ...c.policies], status: 'zamkniety' } : c) }));
-      }
-      supabase.from('crm_companies').update({ status: 'zamkniety' }).eq('id', companyId).then();
+    const policy = dbRowToPolicy(inserted as Record<string,unknown>);
+    let reminder: Reminder | null = null;
+    if (przypomnienie) {
+      const reminderId = crypto.randomUUID();
+      const reminderText = `🛡️ Odnowienie polisy ${policyData.nrPolisy ? `(${policyData.nrPolisy}) ` : ''}: ${policyData.rodzaj} — kończy się ${policyData.dataDo ? new Date(policyData.dataDo).toLocaleDateString('pl-PL') : '?'}`;
+      const reminderDate = `${przypomnienie}T09:00:00`;
+      const { error: remErr } = await supabase.from('crm_reminders').insert({ id: reminderId, company_id: companyId, text: reminderText, date: reminderDate, done: false });
+      if (!reportError('Przypomnienie o odnowieniu', remErr)) reminder = { id: reminderId, date: reminderDate, text: reminderText, done: false };
     }
+    set(state => ({ companies: state.companies.map(c => c.id === companyId
+      ? { ...c, policies: [policy, ...c.policies], reminders: reminder ? [...c.reminders, reminder] : c.reminders, status: 'zamkniety' }
+      : c) }));
+    supabase.from('crm_companies').update({ status: 'zamkniety' }).eq('id', companyId)
+      .then(({ error: stErr }) => reportError('Zmiana statusu', stErr));
   },
 
   updatePolicy: async (policyId, data) => {
@@ -236,53 +307,62 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     if (data.sumaUbezpieczenia !== undefined) dbData.suma_ubezpieczenia = data.sumaUbezpieczenia;
     if (data.skladka !== undefined) dbData.skladka = data.skladka;
     if (data.skladkaOkres !== undefined) dbData.skladka_okres = data.skladkaOkres;
-    if (data.dataOd !== undefined) dbData.data_od = data.dataOd;
-    if (data.dataDo !== undefined) { dbData.data_do = data.dataDo; dbData.przypomnienie = calcReminderDate(data.dataDo); }
+    if (data.dataOd !== undefined) dbData.data_od = data.dataOd || null;
+    if (data.dataDo !== undefined) { dbData.data_do = data.dataDo || null; dbData.przypomnienie = calcReminderDate(data.dataDo) || null; }
     if (data.ochronaPrawna !== undefined) dbData.ochrona_prawna = data.ochronaPrawna;
     if (data.status !== undefined) dbData.status = data.status;
     if (data.notes !== undefined) dbData.notes = data.notes;
-    await supabase.from('crm_policies').update(dbData).eq('id', policyId);
+    const { error } = await supabase.from('crm_policies').update(dbData).eq('id', policyId);
+    if (reportError('Zapis polisy', error)) return;
     set(state => ({ companies: state.companies.map(c => ({ ...c, policies: c.policies.map(p => p.id === policyId ? { ...p, ...data, przypomnienie: data.dataDo ? calcReminderDate(data.dataDo) : p.przypomnienie } : p) })) }));
   },
 
   deletePolicy: async (policyId, companyId) => {
-    await supabase.from('crm_policies').delete().eq('id', policyId);
+    const { data, error } = await supabase.from('crm_policies').delete().eq('id', policyId).select('id');
+    if (reportError('Usuwanie polisy', error)) return;
+    if (!data?.length) return denied('Usuwanie polisy');
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, policies: c.policies.filter(p => p.id !== policyId) } : c) }));
   },
 
   addUser: async (data) => {
-    const { data: row, error } = await supabase.from('crm_users').insert({ name: data.name ?? '', email: data.email ?? '', role: data.role ?? 'user', color: data.color ?? '#6b7280' }).select().single();
-    if (!error && row) set(state => ({ users: [...state.users, row as CRMUser] }));
+    const { data: row, error } = await supabase.from('crm_users').insert({
+      name: data.name?.trim() ?? '', email: data.email?.trim().toLowerCase() ?? '',
+      role: data.role ?? 'user', color: data.color ?? '#6b7280',
+    }).select().single();
+    if (reportError('Dodawanie użytkownika', error) || !row) return;
+    set(state => ({ users: [...state.users, row as CRMUser] }));
   },
 
   deleteUser: async (id) => {
-    await supabase.from('crm_users').delete().eq('id', id);
+    const { data, error } = await supabase.from('crm_users').delete().eq('id', id).select('id');
+    if (reportError('Usuwanie użytkownika', error)) return;
+    if (!data?.length) return denied('Usuwanie użytkownika');
     set(state => ({ users: state.users.filter(u => u.id !== id) }));
   },
 
   updateUser: async (id, data) => {
-    await supabase.from('crm_users').update(data).eq('id', id);
+    const { data: rows, error } = await supabase.from('crm_users').update(data).eq('id', id).select('id');
+    if (reportError('Zapis użytkownika', error)) return;
+    if (!rows?.length) return denied('Zapis użytkownika');
     set(state => ({ users: state.users.map(u => u.id === id ? { ...u, ...data } : u) }));
   },
 
   updateStages: async (stages) => {
+    const { data, error } = await supabase.from('crm_settings')
+      .upsert({ key: 'pipeline_stages', value: stages as unknown as Record<string,unknown>, updated_at: new Date().toISOString() })
+      .select('key');
+    if (reportError('Zapis etapów', error)) return;
+    if (!data?.length) return denied('Zapis etapów');
     set({ stages });
-    await supabase.from('crm_settings').upsert({ key: 'pipeline_stages', value: stages as unknown as Record<string,unknown>, updated_at: new Date().toISOString() });
   },
 
   sendToGR: async (companyId) => {
-    const co = get().companies.find(c => c.id === companyId);
-    if (!co) return;
-    const res = await fetch('https://dhuvykwecsxgchzxufxw.supabase.co/functions/v1/lead-import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': 'beauty2026secret' },
-      body: JSON.stringify({ company: co.company, contact: co.contact, email: co.email, phone: co.phone, nip: co.nip, ubezpieczenie: co.ubezpieczenie, przychod: co.przychod, tag: co.tag ?? '', lead_source: co.leadSource ?? '', send_to_gr: true }),
-    }).catch(() => null);
-    const ok = res?.ok ?? false;
-    const now = new Date().toISOString();
-    const status = ok ? 'ok' : 'error';
-    await supabase.from('crm_companies').update({ gr_status: status, gr_sent_at: now }).eq('id', companyId);
-    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, grStatus: status, grSentAt: now } : c) }));
+    const { data, error } = await supabase.functions.invoke('lead-import', { body: { action: 'send_to_gr', company_id: companyId } });
+    if (reportError('Wysyłka do GetResponse', error)) return;
+    const grStatus = data?.gr_status ?? 'error';
+    const grSentAt = data?.gr_sent_at ?? new Date().toISOString();
+    if (grStatus !== 'ok') toast.error('GetResponse odrzucił kontakt');
+    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, grStatus, grSentAt } : c) }));
   },
 
   loadMienieWnioski: async () => {
@@ -371,67 +451,60 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
       });
       set({ mienieWnioski: wnioski, mienieLokalizacje: lokalizacje, mienieLoading: false });
     } else {
+      reportError('Wczytywanie wniosków', error);
       set({ mienieLoading: false });
     }
   },
 
   generateFormToken: async (companyId) => {
-    const token = `${crypto.randomUUID()}-ID${companyId}`;
-    await supabase.from('crm_companies').update({ form_token: token }).eq('id', companyId);
+    const { data, error } = await supabase.rpc('crm_issue_form_token', { p_company_id: companyId });
+    if (reportError('Generowanie linku', error)) return '';
+    const token: string = data?.[0]?.form_token ?? '';
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
     return token;
   },
 
-  resetFormToken: async (companyId) => {
-    const token = `${crypto.randomUUID()}-ID${companyId}`;
-    await supabase.from('crm_companies').update({ form_token: token }).eq('id', companyId);
-    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
-    return token;
-  },
+  resetFormToken: async (companyId) => get().generateFormToken(companyId),
 
   importCompanies: async (rows) => {
     const existing = get().companies;
-    const maxId = Math.max(0, ...existing.map(c => c.id));
     let imported = 0, merged = 0, errors = 0;
 
-    for (let i = 0; i < rows.length; i++) {
-      const row = rows[i];
+    for (const row of rows) {
       if (!row.company) continue;
-      const nip = ((row as Record<string,unknown>).nip as string ?? '').trim();
-
-      // Check for NIP duplicate
+      const extra = row as Record<string, unknown>;
+      const nip = String(extra.nip ?? '').trim();
       const existingByNip = nip ? existing.find(c => c.nip === nip) : null;
 
       if (existingByNip) {
-        // Merge: append zainteresowania
-        const newZaint = (row as Record<string,unknown>).ubezpieczenie as string ?? '';
+        const newZaint = String(extra.ubezpieczenie ?? '');
         const currentZaint = existingByNip.zainteresowania ?? '';
-        const merged_str = currentZaint
-          ? (currentZaint.includes(newZaint) ? currentZaint : `${currentZaint}, ${newZaint}`)
+        const mergedStr = currentZaint
+          ? (!newZaint || currentZaint.includes(newZaint) ? currentZaint : `${currentZaint}, ${newZaint}`)
           : newZaint;
-        await supabase.from('crm_companies').update({ zainteresowania: merged_str }).eq('id', existingByNip.id);
-        set(state => ({ companies: state.companies.map(c => c.id === existingByNip.id ? { ...c, zainteresowania: merged_str } : c) }));
+        const { error } = await supabase.from('crm_companies').update({ zainteresowania: mergedStr }).eq('id', existingByNip.id);
+        if (error) { errors++; continue; }
+        set(state => ({ companies: state.companies.map(c => c.id === existingByNip.id ? { ...c, zainteresowania: mergedStr } : c) }));
         merged++;
       } else {
         const newRow = {
-          id: maxId + imported + 1,
           company: row.company ?? '', contact: row.contact ?? '', title: row.title ?? '',
           phone: row.phone ?? '', email: row.email ?? '', city: row.city ?? '',
           state: row.state ?? '', industry: row.industry ?? 'Beauty & Wellness',
           revenue: Number(row.revenue) || 0, employees: String(row.employees ?? ''),
-          url: row.url ?? '', nip: nip,
-          ubezpieczenie: (row as Record<string,unknown>).ubezpieczenie as string ?? '',
-          przychod: (row as Record<string,unknown>).przychod as string ?? '',
-          zainteresowania: (row as Record<string,unknown>).ubezpieczenie as string ?? '',
+          url: row.url ?? '', nip,
+          ubezpieczenie: String(extra.ubezpieczenie ?? ''),
+          przychod: String(extra.przychod ?? ''),
+          zainteresowania: String(extra.ubezpieczenie ?? ''),
           status: 'lead' as const, assigned_to: '', tag: '',
         };
-        const { error } = await supabase.from('crm_companies').insert(newRow);
-        if (!error) {
-          set(state => ({ companies: [...state.companies, dbRowToCompany(newRow)] }));
-          imported++;
-        } else { errors++; }
+        const { data: inserted, error } = await supabase.from('crm_companies').insert(newRow).select().single();
+        if (error || !inserted) { errors++; continue; }
+        set(state => ({ companies: [...state.companies, dbRowToCompany(inserted)] }));
+        imported++;
       }
     }
+    if (errors) toast.error(`Import: ${errors} wierszy nie zapisano`);
     return { imported, merged, errors };
   },
 }));

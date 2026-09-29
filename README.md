@@ -45,6 +45,12 @@ Tabele Supabase:
 | `crm_policies` | Polisy ubezpieczeniowe |
 | `crm_users` | Użytkownicy CRM |
 | `crm_settings` | Ustawienia (m.in. konfiguracja etapów pipeline) |
+| `crm_lead_intake` | Zgłoszenia z publicznego formularza (anon: tylko INSERT) |
+| `crm_audit_log` | Dziennik zmian (append-only, odczyt: admin) |
+
+Dostęp do danych CRM ma wyłącznie aktywny użytkownik z `crm_users` (dopasowanie po e-mailu konta
+Supabase) — egzekwowane przez RLS. Migracje: `supabase/migrations/`, Edge Functions:
+`supabase/functions/`. Szczegóły i otwarte zadania: [docs/AUDYT_BEZPIECZENSTWA.md](docs/AUDYT_BEZPIECZENSTWA.md).
 
 ## Deployment
 

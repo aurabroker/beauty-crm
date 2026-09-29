@@ -265,11 +265,11 @@ export function Mienie({ onSelectCompany }: { onSelectCompany: (c: Company) => v
   const handleDemoOpen = async () => {
     setDemoGenerating(true);
     const token = demoCompany?.formToken
-      ? (await resetFormToken(DEMO_COMPANY_ID), demoCompany.formToken)
+      ? await resetFormToken(DEMO_COMPANY_ID)
       : await generateFormToken(DEMO_COMPANY_ID);
     setDemoGenerating(false);
-    const url = `${window.location.origin}/mienie-formularz.html?token=${token || demoCompany?.formToken}`;
-    window.open(url, '_blank');
+    if (!token) return;
+    window.open(`${window.location.origin}/mienie-formularz.html?token=${token}`, '_blank', 'noopener');
   };
   const handleDemoCopy = async () => {
     if (!demoCompany?.formToken) return;

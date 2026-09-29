@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-export function LoginPage({ onLogin }: { onLogin: () => void }) {
+export function LoginPage() {
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading]   = useState(false);
@@ -10,9 +10,12 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true); setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError('Nieprawidłowy email lub hasło'); setLoading(false); }
-    else onLogin();
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) {
+      setError(error.status === 429 ? 'Zbyt wiele prób logowania. Spróbuj ponownie za kilka minut.' : 'Nieprawidłowy email lub hasło');
+      setPassword('');
+      setLoading(false);
+    }
   };
 
   return (
@@ -36,14 +39,14 @@ export function LoginPage({ onLogin }: { onLogin: () => void }) {
 
           <div>
             <label className="text-xs text-zinc-400 mb-1 block">Adres e-mail</label>
-            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required
+            <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoComplete="username" maxLength={254}
               placeholder="email@firma.pl"
               className="w-full h-10 bg-zinc-800 border border-zinc-700 text-white px-3 text-sm focus:outline-none focus:border-pink-500 placeholder:text-zinc-600"/>
           </div>
 
           <div>
             <label className="text-xs text-zinc-400 mb-1 block">Hasło</label>
-            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required
+            <input type="password" value={password} onChange={e => setPassword(e.target.value)} required autoComplete="current-password" maxLength={128}
               placeholder="••••••••"
               className="w-full h-10 bg-zinc-800 border border-zinc-700 text-white px-3 text-sm focus:outline-none focus:border-pink-500 placeholder:text-zinc-600"/>
           </div>

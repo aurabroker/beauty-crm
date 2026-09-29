@@ -77,16 +77,14 @@ export function GoogleSheetsImport() {
     setLoading(true); setError(''); setResult(null);
     try {
       const csvUrl = convertToCSVUrl(sheetUrl.trim());
-      // Use CORS proxy for non-public sheets
-      const urls = [csvUrl, `https://corsproxy.io/?${encodeURIComponent(csvUrl)}`];
+      if (!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(csvUrl)) throw new Error('Podaj link do arkusza Google (docs.google.com/spreadsheets/...).');
+      // Bez zewnętrznych proxy CORS — dane klientów nie mogą przechodzić przez obce serwery.
       let text = '';
-      for (const url of urls) {
-        try {
-          const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-          if (res.ok) { text = await res.text(); break; }
-        } catch { continue; }
-      }
-      if (!text) throw new Error('Nie można pobrać arkusza. Sprawdź czy jest udostępniony publicznie.');
+      try {
+        const res = await fetch(csvUrl, { signal: AbortSignal.timeout(10000) });
+        if (res.ok) text = await res.text();
+      } catch { /* obsłużone poniżej */ }
+      if (!text) throw new Error('Nie można pobrać arkusza. Użyj linku z „Plik → Udostępnij → Opublikuj w internecie → CSV”.');
       const rows = parseCSV(text);
       if (rows.length === 0) throw new Error('Brak danych lub niepoprawny format. Sprawdź nagłówki kolumn.');
       await importCompanies(rows as Parameters<typeof importCompanies>[0]);
