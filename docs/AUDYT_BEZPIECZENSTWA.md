@@ -11,7 +11,7 @@ konfiguracja hostingu. Priorytet: baza danych i logowanie.
 | K2 | Polityki `auth_all_*` = `true` dla roli `authenticated` na wszystkich tabelach `crm_*` | Baza jest współdzielona z innymi aplikacjami (katalog salonów, Velora, panel mienie). Każde konto zalogowane w **dowolnej** z nich miało pełny odczyt/zapis/usuwanie CRM, łącznie z nadaniem sobie roli admin w `crm_users`. |
 | K3 | Rola użytkownika ustalana w przeglądarce (`localStorage` + przełącznik „Przełącz konto”) | Każdy zalogowany mógł „zostać” adminem jednym kliknięciem. Panel admina chroniony tylko w UI. |
 | K4 | Stały klucz `beauty2026secret` do Edge Function `lead-import` w kodzie frontendu | Anonimowe wstrzykiwanie dowolnych firm do CRM kluczem service_role, spam do GetResponse, modyfikacja istniejących firm po NIP. |
-| K5 | `mienie-form` przyjmowała dowolne kolumny (`...payload`) | Posiadacz linku mógł nadpisać status wniosku, przypisanego agenta, ofertę, numer polisy, `company_id`. |
+| K5 | `mienie-form` przyjmowała dowolne kolumny (`...payload`) | Posiadacz linku mógł nadpisać status wniosku, przypisanego agenta, ofertę, numer polisy, `company_id`. (Funkcja wycofana.) |
 | K6 | Granty tabelowe dla `anon` (SELECT/INSERT/UPDATE/DELETE/TRUNCATE) na wszystkich tabelach CRM | Jedyną zaporą była RLS — brak obrony warstwowej. |
 | K7 | Import z Google Sheets przez publiczne proxy `corsproxy.io` | Dane osobowe leadów przechodziły przez obcy serwer (RODO). |
 
@@ -35,20 +35,18 @@ konfiguracja hostingu. Priorytet: baza danych i logowanie.
 Zweryfikowane testami na produkcji (w transakcji wycofanej): anon → brak dostępu; konto spoza CRM →
 0 wierszy, brak zapisu; admin → pełne dane; formularz publiczny działa; audyt i blokada admina działają.
 
-### Formularz mienie — migracja `20260929203000_mienie_form_rpc`
-- `mienie_form_load` / `mienie_form_save` (tylko `service_role`): walidacja tokenu i terminu ważności,
-  **whitelista pól klienta**, `company_id`/`form_token` wymuszane z bazy, blokada edycji gdy wniosek jest
-  już w obsłudze agenta, zapis wniosku z lokalizacjami **atomowo** (wcześniej: usunięcie lokalizacji,
-  potem wstawianie — błąd w połowie = utrata danych).
-- `crm_issue_form_token()` — link generowany po stronie bazy: 256-bitowy losowy token, ważny 30 dni.
-  Istniejące linki bez terminu dostały 30 dni.
+### Stary formularz mienie — wycofany
+Formularz mienie w CRM (link z tokenem, zakładka „Ubezpieczenia”, zakładka „Wniosek” w karcie firmy)
+został usunięty — zastąpiła go osobna aplikacja mienie. Usunięte: `public/mienie-formularz.html`,
+funkcje SQL formularza (migracja `20260930090000_drop_legacy_mienie_form`), a Edge Function
+`mienie-form` zwraca już tylko `410 Gone` (bez dostępu do bazy). Tabele `mienie_*` i kolumny
+`crm_companies.form_token*` pozostały nietknięte (należą do nowej aplikacji).
 
 ### Edge Functions
 - `lead-import` v12: trzy tryby autoryzacji — sesja użytkownika CRM (JWT), jednorazowe `intake_id`
   z formularza publicznego (dane czytane z bazy, nie z żądania, ważne 30 min), klucz integracji z sekretu
   `LEAD_IMPORT_API_KEY`. Limity rozmiaru, czyszczenie pól, bez liczenia ID po stronie klienta, akcja
   `send_to_gr` (wcześniej „Wyślij do GR” tworzyło duplikat firmy bez NIP).
-- `mienie-form` v8: cienka warstwa nad funkcjami SQL, bez przepuszczania dowolnych kolumn.
 
 ### Frontend
 - Tożsamość i rola **wyłącznie z sesji** — usunięty przełącznik kont i `localStorage`. Konto spoza CRM
@@ -65,18 +63,13 @@ Zweryfikowane testami na produkcji (w transakcji wycofanej): anon → brak dost�
   wpisów historii. Dodane stronicowanie.
 - **Edycja danych firmy nie zapisywała się** (nazwa, kontakt, telefon, e-mail, NIP, miasto, notatki) —
   znikała po odświeżeniu.
-- **Formularz mienie: przesunięte kolumny sprzętu** — przy każdym zapisie „nazwa” dostawała producenta,
-  „producent” model itd.
-- **Formularz mienie: 5 z 10 sum ubezpieczenia ładowało się puste** przy ponownej edycji i było
-  nadpisywane zerami.
-- Formularz mienie z CRM nie działał od 22.09 (zablokowany dostęp anon do tabel) — przywrócony przez funkcję.
-- Link demo otwierał się ze starym (unieważnionym) tokenem.
 - Błędy zapisu były ignorowane po cichu — teraz komunikat + wycofanie zmiany.
 
 ## 3. Do zrobienia przez właściciela (wymaga dostępu do paneli)
 
 1. **Wdrożyć frontend** (Cloudflare Pages, projekt `crm-polska`) z tej gałęzi. Do tego czasu stara wersja
-   działa (baza ją obsługuje), poza generowaniem linków mienie.
+   działa (baza ją obsługuje), poza modułem mienie, który jest wycofany.
+   Usuń też w panelu Supabase nieużywaną Edge Function `mienie-form`.
 2. **Rotacja klucza `lead-import`** — stary klucz jest publiczny i nadal działa (tryb przejściowy dla
    Google Apps Script):
    1. wygeneruj długi losowy klucz (np. `openssl rand -hex 32`);
@@ -101,12 +94,10 @@ Zweryfikowane testami na produkcji (w transakcji wycofanej): anon → brak dost�
   aplikacji z publiczną rejestracją).
 
 **CRM:**
-- Formularz mienie ładuje Tailwind z `cdn.tailwindcss.com` (skrypt zewnętrzny na stronie z danymi
-  klienta) — zastąpić skompilowanym CSS.
 - Brak izolacji danych między agentami (wszyscy użytkownicy CRM widzą wszystkie firmy). Filtr
   „przypisane do mnie” jest tylko w UI. Przy większym zespole: RLS po `assigned_to` (wymaga
   przejścia z imienia na `user_id`).
-- Wydajność: cały CRM ładowany do pamięci przy starcie (1364 firmy + 2300 wpisów historii), bundle 673 kB.
+- Wydajność: cały CRM ładowany do pamięci przy starcie (1364 firmy + 2300 wpisów historii), bundle 639 kB.
   Kierunek: TanStack Query + stronicowanie po stronie serwera + code-splitting.
 - Jakość: 82 błędy ESLint (istniejące wcześniej), brak testów. Priorytet: testy e2e ścieżek
   logowania, polis i formularzy.
@@ -115,6 +106,6 @@ Zweryfikowane testami na produkcji (w transakcji wycofanej): anon → brak dost�
 ## 5. Pliki
 
 - `supabase/migrations/20260929200000_crm_security_lockdown.sql`
-- `supabase/migrations/20260929203000_mienie_form_rpc.sql`
-- `supabase/functions/lead-import/index.ts`, `supabase/functions/mienie-form/index.ts`
+- `supabase/migrations/20260929203000_mienie_form_rpc.sql` (historycznie), `20260930090000_drop_legacy_mienie_form.sql`
+- `supabase/functions/lead-import/index.ts`
 - `public/_headers`

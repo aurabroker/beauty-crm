@@ -2,20 +2,8 @@ import { create } from 'zustand';
 import { toast } from 'sonner';
 import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy, MienieWniosek, MienieLokalizacja } from '../data/companies';
+import type { Company, ContactHistory, Reminder, CRMUser, PipelineStage, Policy } from '../data/companies';
 import { DEFAULT_STAGES } from '../data/companies';
-
-// Niektóre pola tablicowe (sprzet_medyczny, elektronika_eei) są zapisywane przez
-// formularz jako string JSON (double-encoded). Normalizujemy je zawsze do tablicy,
-// inaczej .filter/.length/.map wybucha na stringu/obiekcie.
-function toArray<T = unknown>(v: unknown): T[] {
-  if (Array.isArray(v)) return v as T[];
-  if (typeof v === 'string') {
-    try { const p = JSON.parse(v); return Array.isArray(p) ? (p as T[]) : []; }
-    catch { return []; }
-  }
-  return [];
-}
 
 // PostgREST zwraca maksymalnie 1000 wierszy na zapytanie — bez stronicowania
 // część firm i historii po prostu znikała z CRM.
@@ -76,7 +64,6 @@ function dbRowToCompany(row: Record<string,unknown>, history: ContactHistory[]=[
     grSentAt: (row.gr_sent_at as string) ?? '',
     status: (row.status as Company['status']) ?? 'lead',
     assignedTo: (row.assigned_to as string) ?? '',
-    formToken: (row.form_token as string) ?? undefined,
     history, reminders, policies,
   };
 }
@@ -125,14 +112,8 @@ interface CRMState {
   currentUser: CRMUser | null;
   loading: boolean;
   loadError: string | null;
-  mienieWnioski: MienieWniosek[];
-  mienieLokalizacje: MienieLokalizacja[];
-  mienieLoading: boolean;
   loadData: () => Promise<void>;
   reset: () => void;
-  loadMienieWnioski: () => Promise<void>;
-  generateFormToken: (companyId: number) => Promise<string>;
-  resetFormToken: (companyId: number) => Promise<string>;
   addCompany: (data: Partial<Company>) => Promise<void>;
   deleteCompany: (id: number) => Promise<void>;
   updateCompanyStatus: (id: number, status: Company['status']) => void;
@@ -155,7 +136,6 @@ interface CRMState {
 const INITIAL = {
   companies: [] as Company[], users: [] as CRMUser[], stages: DEFAULT_STAGES,
   currentUser: null as CRMUser | null, loading: true, loadError: null as string | null,
-  mienieWnioski: [] as MienieWniosek[], mienieLokalizacje: [] as MienieLokalizacja[], mienieLoading: false,
 };
 
 export const useCRMStore = create<CRMState>()((set, get) => ({
@@ -364,107 +344,6 @@ export const useCRMStore = create<CRMState>()((set, get) => ({
     if (grStatus !== 'ok') toast.error('GetResponse odrzucił kontakt');
     set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, grStatus, grSentAt } : c) }));
   },
-
-  loadMienieWnioski: async () => {
-    set({ mienieLoading: true });
-    const [{ data, error }, { data: lokData }] = await Promise.all([
-      supabase.from('mienie_wnioski').select('*').order('created_at', { ascending: false }),
-      supabase.from('mienie_lokalizacje').select('*').order('nr'),
-    ]);
-    const lokalizacje: MienieLokalizacja[] = (lokData ?? []).map(r => ({
-      id: r.id, wniosekId: r.wniosek_id, companyId: r.company_id, nr: r.nr,
-      nazwa: r.nazwa ?? 'Lokalizacja 1', adres: r.adres ?? '',
-      typLokalu: r.typ_lokalu ?? '', pietro: r.pietro ?? '',
-      powierzchnia: r.powierzchnia ? Number(r.powierzchnia) : null,
-      rokBudowy: r.rok_budowy ?? '', rokRemontu: r.rok_remontu ?? '',
-      budynekWlasny: r.budynek_wlasny ?? false, materialScian: r.material_scian ?? '',
-      pokrycieDachu: r.pokrycie_dachu ?? '', stanTechniczny: r.stan_techniczny ?? '',
-      ogrzewanie: r.ogrzewanie ?? '', materialyPalne: r.materialy_palne ?? false,
-      gasniceSzt: r.gasnice_szt ?? '', hydranty: r.hydranty ?? false,
-      dataPrzegladuGasnic: r.data_przegladu_gasnic ?? '', sap: r.sap ?? false,
-      tryskacze: r.tryskacze ?? false, drogiEwakuacyjne: r.drogi_ewakuacyjne ?? false,
-      odlegloscPsp: r.odleglosc_psp ?? '', zakazPalenia: r.zakaz_palenia ?? false,
-      alarmTyp: r.alarm_typ ?? '', ogrodzenie: r.ogrodzenie ?? false,
-      agencjaOchrony: r.agencja_ochrony ?? '', agencja24h: r.agencja_24h ?? false,
-      cctv: r.cctv ?? false, kraty: r.kraty ?? false, rolety: r.rolety ?? false,
-      zamkiAtestowane: r.zamki_atestowane ?? false, drzwiAtestowane: r.drzwi_atestowane ?? false,
-      szybyAntywlamaniowe: r.szyby_antywlamaniowe ?? false, sejfKlasa: r.sejf_klasa ?? '',
-      systemAlarmowy: r.system_alarmowy ?? false,
-      sumaBudynek: Number(r.suma_budynek ?? 0), sumaWyposazenie: Number(r.suma_wyposazenie ?? 0),
-      sumaMaszyny: Number(r.suma_maszyny ?? 0), sumaSrodkiObrotowe: Number(r.suma_srodki_obrotowe ?? 0),
-      sumaElektronikaIt: Number(r.suma_elektronika_it ?? 0), sumaSprzet: Number(r.suma_sprzet_medyczny ?? 0),
-      sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
-      sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
-      sumaLacznie: Number(r.suma_lacznie ?? 0),
-      sprzet: toArray(r.sprzet_medyczny), elektronika: toArray(r.elektronika_eei),
-      createdAt: r.created_at,
-    }));
-    if (!error && data) {
-      const lokByWniosek = new Map<string, MienieLokalizacja[]>();
-      lokalizacje.forEach(l => {
-        if (!lokByWniosek.has(l.wniosekId)) lokByWniosek.set(l.wniosekId, []);
-        lokByWniosek.get(l.wniosekId)!.push(l);
-      });
-      const wnioski: MienieWniosek[] = data.map(r => {
-        const loks = lokByWniosek.get(r.id) ?? [];
-        const sumaLacznie = loks.length > 0 ? loks.reduce((s, l) => s + l.sumaLacznie, 0) : Number(r.suma_lacznie ?? 0);
-        return ({
-        id: r.id, companyId: r.company_id, formToken: r.form_token,
-        nazwaFirmy: r.nazwa_firmy ?? '', nip: r.nip ?? '', regon: r.regon ?? '', krs: r.krs ?? '',
-        adresSiedziby: r.adres_siedziby ?? '', formaPrawna: r.forma_prawna ?? '', numerPkd: r.numer_pkd ?? '',
-        emailKontaktowy: r.email_kontaktowy ?? '', telefon: r.telefon ?? '',
-        osobaKontaktu: r.osoba_kontaktu ?? '', stanowisko: r.stanowisko ?? '',
-        adresLokalizacji: r.adres_lokalizacji ?? '', typLokalu: r.typ_lokalu ?? '',
-        pietro: r.pietro ?? '', powierzchnia: r.powierzchnia ? Number(r.powierzchnia) : null,
-        rokBudowy: r.rok_budowy ?? '', rokRemontu: r.rok_remontu ?? '',
-        budynekWlasny: r.budynek_wlasny ?? false, materialScian: r.material_scian ?? '',
-        pokrycieDachu: r.pokrycie_dachu ?? '', stanTechniczny: r.stan_techniczny ?? '',
-        ogrzewanie: r.ogrzewanie ?? '', materialyPalne: r.materialy_palne ?? false,
-        rodzajDzialalnosci: r.rodzaj_dzialalnosci ?? '', liczbaPracownikow: r.liczba_pracownikow ?? '',
-        rocznyObrot: r.roczny_obrot ?? '', zabiegi: toArray(r.zabiegi),
-        gasniceSzt: r.gasnice_szt ?? '', hydranty: r.hydranty ?? false,
-        dataPrzegladuGasnic: r.data_przegladu_gasnic ?? '', sap: r.sap ?? false,
-        tryskacze: r.tryskacze ?? false, drogiEwakuacyjne: r.drogi_ewakuacyjne ?? false,
-        odlegloscPsp: r.odleglosc_psp ?? '', zakazPalenia: r.zakaz_palenia ?? false,
-        alarmTyp: r.alarm_typ ?? 'brak', ogrodzenie: r.ogrodzenie ?? false,
-        agencjaOchrony: r.agencja_ochrony ?? '', agencja24h: r.agencja_24h ?? false,
-        cctv: r.cctv ?? false, kraty: r.kraty ?? false, rolety: r.rolety ?? false,
-        zamkiAtestowane: r.zamki_atestowane ?? false, drzwiAtestowane: r.drzwi_atestowane ?? false,
-        szybyAntywlamaniowe: r.szyby_antywlamaniowe ?? false, sejfKlasa: r.sejf_klasa ?? 'brak',
-        systemAlarmowy: r.system_alarmowy ?? false,
-        zakres: toArray(r.zakres),
-        sumaBudynek: Number(r.suma_budynek ?? 0), sumaWyposazenie: Number(r.suma_wyposazenie ?? 0),
-        sumaMaszyny: Number(r.suma_maszyny ?? 0), sumaSrodkiObrotowe: Number(r.suma_srodki_obrotowe ?? 0),
-        sumaElektronikaIt: Number(r.suma_elektronika_it ?? 0), sumaSprzet: Number(r.suma_sprzet_medyczny ?? 0),
-        sumaGotowkaLokal: Number(r.suma_gotowka_lokal ?? 0), sumaGotowkaTransport: Number(r.suma_gotowka_transport ?? 0),
-        sumaSzyby: Number(r.suma_szyby ?? 0), sumaMieniePracownikow: Number(r.suma_mienie_pracownikow ?? 0),
-        sumaLacznie,
-        brakSzkod: r.brak_szkod ?? true, szkody: toArray(r.szkody),
-        posiadaPolise: r.posiada_polise ?? false, towarzystwoObecne: r.towarzystwo_obecne ?? '',
-        nrPolisyObecny: r.nr_polisy_obecny ?? '', waznoscDo: r.waznosc_do ?? '',
-        rocznaSlkadkaObecna: r.roczna_skladka_obecna ? Number(r.roczna_skladka_obecna) : null,
-        uwagi: r.uwagi ?? '', zgodaPrawdziwosc: r.zgoda_prawdziwosc ?? false, zgodaRodo: r.zgoda_rodo ?? false,
-        sprzet: loks[0]?.sprzet ?? toArray(r.sprzet_medyczny),
-        elektronika: loks[0]?.elektronika ?? toArray(r.elektronika_eei),
-        createdAt: r.created_at, updatedAt: r.updated_at,
-      });
-      });
-      set({ mienieWnioski: wnioski, mienieLokalizacje: lokalizacje, mienieLoading: false });
-    } else {
-      reportError('Wczytywanie wniosków', error);
-      set({ mienieLoading: false });
-    }
-  },
-
-  generateFormToken: async (companyId) => {
-    const { data, error } = await supabase.rpc('crm_issue_form_token', { p_company_id: companyId });
-    if (reportError('Generowanie linku', error)) return '';
-    const token: string = data?.[0]?.form_token ?? '';
-    set(state => ({ companies: state.companies.map(c => c.id === companyId ? { ...c, formToken: token } : c) }));
-    return token;
-  },
-
-  resetFormToken: async (companyId) => get().generateFormToken(companyId),
 
   importCompanies: async (rows) => {
     const existing = get().companies;

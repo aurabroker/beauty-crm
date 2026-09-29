@@ -6,13 +6,3 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
   Strict-Transport-Security: max-age=31536000
   Cross-Origin-Opener-Policy: same-origin
-
-/mienie-formularz.html
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; connect-src https://dhuvykwecsxgchzxufxw.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
-  Cache-Control: no-store
-
-/mienie-formularz
-  ! Content-Security-Policy
-  Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data:; connect-src https://dhuvykwecsxgchzxufxw.supabase.co; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
-  Cache-Control: no-store
